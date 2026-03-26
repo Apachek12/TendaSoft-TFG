@@ -11,8 +11,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional; // ¡IMPORTANTE!
 
 import java.sql.Timestamp;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -25,35 +27,63 @@ public class VentaService {
     // @Transactional asegura que si algo falla, no se guarde nada a medias en la BD.
     @Transactional
     public Venta registrarNuevaVenta(Venta venta, List<LineaVenta> lineas) {
+        // 1. GENERACIÓN AUTOMÁTICA DEL NÚMERO DE FACTURA
+        int anioActual = LocalDate.now().getYear();
+        Optional<Venta> ultimaVentaOpt = ventaRepository.findFirstByOrderByIdVentaDesc();
 
-        // 1. Configuramos los datos automáticos de la venta
+        String nuevoNumero;
+        if (ultimaVentaOpt.isPresent()) {
+            String ultimoNumStr = ultimaVentaOpt.get().getNumeroFactura(); // Ejemplo: "FAC-2026-0005"
+            try {
+                String[] partes = ultimoNumStr.split("-");
+                // Tomamos la última parte (0005), la pasamos a número y sumamos 1
+                int ultimoSecuencial = Integer.parseInt(partes[2]);
+                nuevoNumero = String.format("FAC-%d-%04d", anioActual, ultimoSecuencial + 1);
+            } catch (Exception e) {
+                // Si el formato anterior fuera incompatible, empezamos de nuevo para este año
+                nuevoNumero = String.format("FAC-%d-0001", anioActual);
+            }
+        } else {
+            // Si es la primerísima venta de la historia del sistema
+            nuevoNumero = String.format("FAC-%d-0001", anioActual);
+        }
+
+        venta.setNumeroFactura(nuevoNumero);
+
+        // 2. LÓGICA VERI*FACTU: Encadenamiento de Hash
+        // El hash anterior es el "hashVerifactu" de la última venta, o un valor inicial si no hay
+        String hashAnterior = ultimaVentaOpt.map(Venta::getHashVerifactu).orElse("INICIO-SISTEMA");
+        venta.setHashAnterior(hashAnterior);
         venta.setFecha(LocalDateTime.now());
 
-        // Simulación del Hash VeriFactu (Aquí iría tu lógica real criptográfica)
-        venta.setHashVerifactu("HASH_SIMULADO_" + System.currentTimeMillis());
-        venta.setEstadoVerifactu("PENDIENTE");
+        // Generamos el hash actual (Simulado para TFG usando el hashCode de los datos clave)
+        String datosParaHash = nuevoNumero + venta.getTotal().toString() + hashAnterior + venta.getFecha().toString();
+        venta.setHashVerifactu(Integer.toHexString(datosParaHash.hashCode()));
+        venta.setEstadoVerifactu("PENDIENTE_ENVIO");
 
-        // 2. Guardamos la cabecera de la venta primero para que MySQL le asigne un ID
+        // 3. GUARDAR CABECERA DE LA VENTA
+        // Es vital guardar la venta primero para que tenga un ID y las líneas puedan referenciarlo
         Venta ventaGuardada = ventaRepository.save(venta);
 
-        // 3. Procesamos cada línea del ticket
+        // 4. PROCESAR LÍNEAS DE VENTA Y ACTUALIZAR STOCK
         for (LineaVenta linea : lineas) {
-            // Vinculamos la línea a la venta que acabamos de guardar
-            linea.setVenta(ventaGuardada);
+            // Buscamos el producto por su código de barras
+            Producto producto = productoRepository.findById(linea.getProducto().getCodigoBarras())
+                    .orElseThrow(() -> new RuntimeException("Producto no encontrado: " + linea.getProducto().getCodigoBarras()));
 
-            // Buscamos el producto en la BD para restarle el stock
-            Producto productoDB = productoRepository.findById(linea.getProducto().getCodigoBarras())
-                    .orElseThrow(() -> new RuntimeException("Producto no encontrado en la venta"));
-
-            if (productoDB.getUnidades() < linea.getCantidad()) {
-                throw new IllegalArgumentException("No hay stock suficiente para " + productoDB.getNombre());
+            // Verificamos stock (Usamos IllegalStateException para que nuestro GlobalExceptionHandler lo capture)
+            if (producto.getUnidades() < linea.getCantidad()) {
+                throw new IllegalStateException("No hay stock suficiente de: " + producto.getNombre() +
+                        " (Stock actual: " + producto.getUnidades() + ")");
             }
 
             // Restamos el stock
-            productoDB.setUnidades(productoDB.getUnidades() - linea.getCantidad());
-            productoRepository.save(productoDB);
+            producto.setUnidades(producto.getUnidades() - linea.getCantidad());
+            productoRepository.save(producto);
 
-            // Guardamos la línea de venta
+            // Configuramos la línea y la guardamos
+            linea.setVenta(ventaGuardada);
+            linea.setNombreProducto(producto.getNombre());
             lineaVentaRepository.save(linea);
         }
 

@@ -8,6 +8,7 @@ import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Optional;
 
 @Repository
 public interface VentaRepository extends JpaRepository<Venta, Long> {
@@ -17,4 +18,6 @@ public interface VentaRepository extends JpaRepository<Venta, Long> {
             @Param("usuarioId") Integer usuarioId,
             @Param("fechaApertura") LocalDateTime fechaApertura
     );
+
+    Optional<Venta> findFirstByOrderByIdVentaDesc();
 }
