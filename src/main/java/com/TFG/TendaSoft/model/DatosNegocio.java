@@ -29,7 +29,6 @@ public class DatosNegocio {
     @Column(name = "ruta_logo", length = 255)
     private String rutaLogo;
 
-    // tinyint en BD se suele mapear como Boolean en Java
     @Column(name = "verifactu_activado", nullable = false)
     private Boolean verifactuActivado;
 

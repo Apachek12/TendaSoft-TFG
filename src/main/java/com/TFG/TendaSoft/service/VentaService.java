@@ -25,11 +25,8 @@ public class VentaService {
     private final VentaRepository ventaRepository;
     private final LineaVentaRepository lineaVentaRepository;
     private final ProductoRepository productoRepository;
-
-    // @Transactional asegura que si algo falla, no se guarde nada a medias en la BD.
     @Transactional
     public Venta registrarNuevaVenta(Venta venta, List<LineaVenta> lineas) {
-        // 1. GENERACIÓN AUTOMÁTICA DEL NÚMERO DE FACTURA
         int anioActual = LocalDate.now().getYear();
         Optional<Venta> ultimaVentaOpt = ventaRepository.findFirstByOrderByIdDesc();
 
@@ -46,44 +43,36 @@ public class VentaService {
                 nuevoNumero = String.format("FAC-%d-0001", anioActual);
             }
         } else {
-            // Si es la primerísima venta de la historia del sistema
+            // Si es la primera venta de la historia del sistema
             nuevoNumero = String.format("FAC-%d-0001", anioActual);
         }
 
         venta.setNumeroFactura(nuevoNumero);
 
-        // 2. LÓGICA VERI*FACTU: Encadenamiento de Hash
         // El hash anterior es el "hashVerifactu" de la última venta, o un valor inicial si no hay
         String hashAnterior = ultimaVentaOpt.map(Venta::getHashVerifactu).orElse("INICIO-SISTEMA");
         venta.setHashAnterior(hashAnterior);
         venta.setFecha(LocalDateTime.now());
 
-        // Generamos el hash actual (Simulado para TFG usando el hashCode de los datos clave)
+        // Generamos el hash actual
         String datosParaHash = nuevoNumero + venta.getTotal().toString() + hashAnterior + venta.getFecha().toString();
         venta.setHashVerifactu(Integer.toHexString(datosParaHash.hashCode()));
         venta.setEstadoVerifactu("PENDIENTE_ENVIO");
 
-        // 3. GUARDAR CABECERA DE LA VENTA
-        // Es vital guardar la venta primero para que tenga un ID y las líneas puedan referenciarlo
         Venta ventaGuardada = ventaRepository.save(venta);
 
-        // 4. PROCESAR LÍNEAS DE VENTA Y ACTUALIZAR STOCK
         for (LineaVenta linea : lineas) {
-            // Buscamos el producto por su código de barras
             Producto producto = productoRepository.findById(linea.getProducto().getCodigoBarras())
                     .orElseThrow(() -> new RuntimeException("Producto no encontrado: " + linea.getProducto().getCodigoBarras()));
 
-            // Verificamos stock (Usamos IllegalStateException para que nuestro GlobalExceptionHandler lo capture)
             if (producto.getUnidades() < linea.getCantidad()) {
                 throw new IllegalStateException("No hay stock suficiente de: " + producto.getNombre() +
                         " (Stock actual: " + producto.getUnidades() + ")");
             }
 
-            // Restamos el stock
             producto.setUnidades(producto.getUnidades() - linea.getCantidad());
             productoRepository.save(producto);
 
-            // Configuramos la línea y la guardamos
             linea.setVenta(ventaGuardada);
             linea.setNombreProducto(producto.getNombre());
             lineaVentaRepository.save(linea);
@@ -97,26 +86,20 @@ public class VentaService {
         LocalDateTime inicio;
         LocalDateTime fin;
 
-        // LÓGICA EN CASCADA (Año -> Mes -> Día)
         if (mes == null) {
-            // 1. SOLO AÑO (Ej: Todo 2026)
             inicio = LocalDateTime.of(año, 1, 1, 0, 0, 0);
             fin = LocalDateTime.of(año, 12, 31, 23, 59, 59, 999999999);
         } else if (dia == null) {
-            // 2. AÑO Y MES (Ej: Marzo de 2026)
             YearMonth yearMonth = YearMonth.of(año, mes);
             inicio = yearMonth.atDay(1).atStartOfDay();
             fin = yearMonth.atEndOfMonth().atTime(23, 59, 59, 999999999);
         } else {
-            // 3. DÍA EXACTO (Ej: 10 de Marzo de 2026)
             inicio = LocalDateTime.of(año, mes, dia, 0, 0, 0);
             fin = LocalDateTime.of(año, mes, dia, 23, 59, 59, 999999999);
         }
 
-        // El repositorio hace la magia buscando entre las dos fechas calculadas
         List<Venta> ventasEntidad = ventaRepository.findByFechaBetweenOrderByFechaDesc(inicio, fin);
 
-        // Transformamos a DTO
         return ventasEntidad.stream()
                 .map(venta -> VentaListadoDTO.builder()
                         .idVenta(venta.getId())

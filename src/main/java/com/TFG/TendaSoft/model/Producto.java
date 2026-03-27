@@ -11,7 +11,6 @@ import java.math.BigDecimal;
 @Setter
 public class Producto {
 
-    // Recuerda: Aquí no hay GeneratedValue porque el código de barras lo metes a mano
     @Id
     @Column(name = "codigo_barras", length = 50, unique = true, nullable = false)
     private String codigoBarras;

@@ -18,16 +18,14 @@ public class UsuarioService {
     }
 
     public Usuario crearUsuario(Usuario usuario) {
-        // En tu repositorio de usuario tendrías que crear: boolean existsByNombreUsuario(String nombreUsuario);
         if (usuario.getIdUsuario() != null) {
             throw new IllegalArgumentException("El ID debe estar vacío para crear un usuario nuevo.");
         }
-        // Aquí en el futuro meteremos la encriptación de la contraseña (BCrypt)
+        // TODO encriptación de la contraseña
         return usuarioRepository.save(usuario);
     }
 
     public Usuario buscarPorUsername(String username) {
-        // En tu repositorio: Optional<Usuario> findByNombreUsuario(String nombreUsuario);
         return usuarioRepository.findByNombreUsuario(username)
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
     }

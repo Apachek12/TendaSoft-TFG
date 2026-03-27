@@ -13,7 +13,6 @@ import java.util.Optional;
 
 @Repository
 public interface VentaRepository extends JpaRepository<Venta, Long> {
-    // COALESCE evita que devuelva 'null' si el cajero no ha vendido nada (devuelve 0)
     @Query("SELECT COALESCE(SUM(v.total), 0) FROM Venta v WHERE v.usuario.idUsuario = :usuarioId AND v.fecha >= :fechaApertura")
     BigDecimal calcularTotalVentasDesde(
             @Param("usuarioId") Integer usuarioId,

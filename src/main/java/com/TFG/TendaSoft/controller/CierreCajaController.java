@@ -27,22 +27,20 @@ public class CierreCajaController {
 
     @Data
     public static class CierreRequest {
-        // Ahora el JSON debe traer el ID del usuario que quiere cerrar
+        // El JSON debe incluir el ID del usuario que quiere cerrar
         private Integer idUsuario;
         private BigDecimal dineroFisicoContado;
     }
 
     @PostMapping("/abrir")
     public ResponseEntity<CierreCaja> abrirCaja(@RequestBody AperturaRequest peticion) {
-        // Solución Problema 1: Ahora el Service ya tiene el "candado" interno
-        // de no dejar abrir si hay otra abierta.
+        // No deja abrir si ya hay una caja abierta
         CierreCaja caja = cierreCajaService.abrirCaja(peticion.getFondoInicial(), peticion.getUsuario());
         return new ResponseEntity<>(caja, HttpStatus.CREATED);
     }
 
     @PostMapping("/cerrar") // Quitamos el /{idCierre} de aquí
     public ResponseEntity<CierreCaja> cerrarCaja(@RequestBody CierreRequest peticion) {
-        // Solución Problema 2: Pasamos los dos datos que extraemos del JSON (peticion)
         CierreCaja cajaCerrada = cierreCajaService.cerrarCaja(
                 peticion.getIdUsuario(),
                 peticion.getDineroFisicoContado()

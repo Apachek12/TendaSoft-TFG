@@ -20,7 +20,7 @@ public class VentaController {
 
     private final VentaService ventaService;
 
-    // Esta clase interna nos sirve para recibir un JSON complejo desde React
+    // Recibir un JSON complejo desde React
     @Data
     public static class VentaRequest {
         private Venta venta;

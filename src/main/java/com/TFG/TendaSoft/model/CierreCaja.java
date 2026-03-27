@@ -14,7 +14,7 @@ public class CierreCaja {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id; // Long para mapear bigint(19)
+    private Long id;
 
     @Column(name = "fecha_apertura", nullable = false)
     private LocalDateTime fechaApertura;

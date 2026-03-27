@@ -19,7 +19,6 @@ public class CierreCajaService {
 
     public CierreCaja abrirCaja(BigDecimal fondoInicial, Usuario usuario) {
 
-        // 1. EL CANDADO: Comprobamos si este usuario ya tiene una caja sin cerrar
         cierreCajaRepository.buscarCajaAbiertaDeUsuario(usuario.getIdUsuario())
                 .ifPresent(cajaAntigua -> {
                     throw new IllegalStateException(
@@ -29,7 +28,6 @@ public class CierreCajaService {
                     );
                 });
 
-        // 2. Si no saltó el error anterior, creamos la caja nueva con normalidad
         CierreCaja nuevoCierre = new CierreCaja();
         nuevoCierre.setFechaApertura(LocalDateTime.now());
         nuevoCierre.setFondoInicial(fondoInicial);
@@ -38,7 +36,6 @@ public class CierreCajaService {
         nuevoCierre.setTotalVentas(BigDecimal.ZERO);
         nuevoCierre.setFondoFinal(BigDecimal.ZERO);
         nuevoCierre.setDescuadre(BigDecimal.ZERO);
-        // Dejamos la fecha de cierre en null explícitamente (así sabemos que está abierta)
         nuevoCierre.setFechaCierre(null);
 
         return cierreCajaRepository.save(nuevoCierre);
@@ -46,13 +43,11 @@ public class CierreCajaService {
 
     public CierreCaja cerrarCaja(Integer idUsuario, BigDecimal dineroFisicoContado) {
 
-        // ¡Buscamos su caja abierta mágicamente!
         CierreCaja caja = cierreCajaRepository.buscarCajaAbiertaDeUsuario(idUsuario)
                 .orElseThrow(() -> new RuntimeException("Este usuario no tiene ninguna caja abierta actualmente."));
 
         caja.setFechaCierre(LocalDateTime.now());
 
-        // Calculamos las ventas
         BigDecimal totalVentasCalculado = ventaRepository.calcularTotalVentasDesde(
                 caja.getUsuario().getIdUsuario(),
                 caja.getFechaApertura()

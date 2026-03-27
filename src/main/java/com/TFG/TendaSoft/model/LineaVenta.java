@@ -13,7 +13,7 @@ public class LineaVenta {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id; // Long para mapear bigint(19)
+    private Long id;
 
     @Column(name = "nombre_producto", length = 150, nullable = false)
     private String nombreProducto;

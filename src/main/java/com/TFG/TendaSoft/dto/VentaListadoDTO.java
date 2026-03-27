@@ -13,6 +13,6 @@ public class VentaListadoDTO {
     private LocalDateTime fecha;
     private BigDecimal total;
     private String metodoPago;
-    private String estadoVerifactu; // Para el icono verde/rojo/naranja
-    private String nombreCajero;    // <-- ¡AQUÍ ESTÁ LA CLAVE! Reemplaza al objeto Usuario completo
+    private String estadoVerifactu;
+    private String nombreCajero;
 }

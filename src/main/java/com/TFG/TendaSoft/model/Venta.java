@@ -14,7 +14,7 @@ public class Venta {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id; // Long para mapear bigint(19)
+    private Long id;
 
     @Column(nullable = false)
     private LocalDateTime fecha;
