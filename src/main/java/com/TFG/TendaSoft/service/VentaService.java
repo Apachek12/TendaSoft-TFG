@@ -1,5 +1,6 @@
 package com.TFG.TendaSoft.service;
 
+import com.TFG.TendaSoft.dto.VentaListadoDTO;
 import com.TFG.TendaSoft.model.LineaVenta;
 import com.TFG.TendaSoft.model.Producto;
 import com.TFG.TendaSoft.model.Venta;
@@ -13,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional; // ¡IMPORTANTE
 import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.YearMonth;
 import java.util.List;
 import java.util.Optional;
 
@@ -29,7 +31,7 @@ public class VentaService {
     public Venta registrarNuevaVenta(Venta venta, List<LineaVenta> lineas) {
         // 1. GENERACIÓN AUTOMÁTICA DEL NÚMERO DE FACTURA
         int anioActual = LocalDate.now().getYear();
-        Optional<Venta> ultimaVentaOpt = ventaRepository.findFirstByOrderByIdVentaDesc();
+        Optional<Venta> ultimaVentaOpt = ventaRepository.findFirstByOrderByIdDesc();
 
         String nuevoNumero;
         if (ultimaVentaOpt.isPresent()) {
@@ -88,5 +90,43 @@ public class VentaService {
         }
 
         return ventaGuardada;
+    }
+
+    public List<VentaListadoDTO> obtenerVentasPorPeriodo(Integer año, Integer mes, Integer dia) {
+
+        LocalDateTime inicio;
+        LocalDateTime fin;
+
+        // LÓGICA EN CASCADA (Año -> Mes -> Día)
+        if (mes == null) {
+            // 1. SOLO AÑO (Ej: Todo 2026)
+            inicio = LocalDateTime.of(año, 1, 1, 0, 0, 0);
+            fin = LocalDateTime.of(año, 12, 31, 23, 59, 59, 999999999);
+        } else if (dia == null) {
+            // 2. AÑO Y MES (Ej: Marzo de 2026)
+            YearMonth yearMonth = YearMonth.of(año, mes);
+            inicio = yearMonth.atDay(1).atStartOfDay();
+            fin = yearMonth.atEndOfMonth().atTime(23, 59, 59, 999999999);
+        } else {
+            // 3. DÍA EXACTO (Ej: 10 de Marzo de 2026)
+            inicio = LocalDateTime.of(año, mes, dia, 0, 0, 0);
+            fin = LocalDateTime.of(año, mes, dia, 23, 59, 59, 999999999);
+        }
+
+        // El repositorio hace la magia buscando entre las dos fechas calculadas
+        List<Venta> ventasEntidad = ventaRepository.findByFechaBetweenOrderByFechaDesc(inicio, fin);
+
+        // Transformamos a DTO
+        return ventasEntidad.stream()
+                .map(venta -> VentaListadoDTO.builder()
+                        .idVenta(venta.getId())
+                        .numeroFactura(venta.getNumeroFactura())
+                        .fecha(venta.getFecha())
+                        .total(venta.getTotal())
+                        .metodoPago(venta.getMetodoPago())
+                        .estadoVerifactu(venta.getEstadoVerifactu())
+                        .nombreCajero(venta.getUsuario() != null ? venta.getUsuario().getNombreUsuario() : "Desconocido")
+                        .build())
+                .toList();
     }
 }

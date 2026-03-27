@@ -1,5 +1,6 @@
 package com.TFG.TendaSoft.controller;
 
+import com.TFG.TendaSoft.dto.VentaListadoDTO;
 import com.TFG.TendaSoft.model.LineaVenta;
 import com.TFG.TendaSoft.model.Venta;
 import com.TFG.TendaSoft.service.VentaService;
@@ -30,5 +31,14 @@ public class VentaController {
     public ResponseEntity<Venta> registrarVenta(@RequestBody VentaRequest peticion) {
         Venta nuevaVenta = ventaService.registrarNuevaVenta(peticion.getVenta(), peticion.getLineas());
         return new ResponseEntity<>(nuevaVenta, HttpStatus.CREATED);
+    }
+
+    @GetMapping("/historial")
+    public ResponseEntity<List<VentaListadoDTO>> listarVentasHistorial(
+            @RequestParam(name = "año") Integer año,
+            @RequestParam(name = "mes", required = false) Integer mes,
+            @RequestParam(name = "dia", required = false) Integer dia) { // ¡Día opcional!
+
+        return ResponseEntity.ok(ventaService.obtenerVentasPorPeriodo(año, mes, dia));
     }
 }
