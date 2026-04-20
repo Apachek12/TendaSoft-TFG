@@ -4,7 +4,7 @@ import { Lock, MonitorSmartphone, Package, Users } from 'lucide-react';
 
 export default function Dashboard() {
   // Placeholder
-  const usuarioActual = { nombre: 'Admin', rol: 'ADMIN' };
+  const usuarioActual = { nombre: 'User', rol: 'USER' };
 
   // Componente reutilizable para los botones gigantes
   const MenuCard = ({ icon, title, onClick }) => (

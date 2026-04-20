@@ -6,7 +6,7 @@ export default function Topbar({ rol }) {
     <div className="h-16 bg-white border-b border-gray-200 flex justify-between items-center px-6">
       {/* Logo pequeño */}
       <div className="flex items-center">
-        <img src="/logo-tendasoft-small.png" alt="Logo" className="w-8 h-8" />
+        <img src="/src/logo-tendasoft.png" alt="Logo" className="w-8 h-8" />
       </div>
 
       <div className="bg-teal-700 text-white px-4 py-1 rounded-full text-xs font-bold flex items-center shadow-inner">

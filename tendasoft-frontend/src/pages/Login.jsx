@@ -59,7 +59,7 @@ export default function Login() {
     <div className="min-h-screen bg-slate-50 flex flex-col justify-center items-center">
       <div className="mb-8">
 
-        <img src="/logo-tendasoft.png" alt="TendaSoft Logo" className="w-24 h-24" />
+        <img src="/src/logo-tendasoft.png" alt="TendaSoft Logo" className="w-24 h-24" />
       </div>
 
       <div className="bg-white p-10 rounded-2xl shadow-sm w-full max-w-md border border-gray-100">
