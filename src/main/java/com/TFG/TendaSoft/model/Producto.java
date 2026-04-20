@@ -30,4 +30,7 @@ public class Producto {
     @ManyToOne
     @JoinColumn(name = "Categoriasid", nullable = false)
     private Categoria categoria;
+
+    @Column(name = "porcentaje_iva", precision = 5, scale = 2, nullable = false)
+    private BigDecimal porcentajeIva;
 }

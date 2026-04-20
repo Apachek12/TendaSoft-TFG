@@ -31,4 +31,28 @@ public class UsuarioController {
     public ResponseEntity<Usuario> crearUsuario(@RequestBody Usuario usuario) {
         return new ResponseEntity<>(usuarioService.crearUsuario(usuario), HttpStatus.CREATED);
     }
+
+    @PostMapping("/login")
+    public ResponseEntity<?> login(@RequestBody java.util.Map<String, String> credenciales) {
+        String username = credenciales.get("nombreUsuario");
+        String password = credenciales.get("contrasena");
+
+        try {
+            // Buscamos el usuario en la base de datos
+            Usuario usuario = usuarioService.buscarPorUsername(username);
+
+            // Comparamos contraseñas (Ojo: para un TFG de 10, la contraseña debería estar encriptada con BCrypt,
+            // pero para arrancar y probar que la conexión funciona, la comparamos tal cual)
+            if (usuario != null && usuario.getHashContrasena().equals(password)) {
+                // Login correcto: devolvemos el usuario completo (incluyendo su rol ADMIN o VENDEDOR)
+                return ResponseEntity.ok(usuario);
+            } else {
+                // Login incorrecto: error 401
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Contraseña incorrecta");
+            }
+        } catch (Exception e) {
+            // Si el buscarPorUsername lanza un error porque no lo encuentra: error 404
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("El usuario no existe");
+        }
+    }
 }

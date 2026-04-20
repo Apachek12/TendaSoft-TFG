@@ -19,10 +19,17 @@ public class LineaVenta {
     private String nombreProducto;
 
     @Column(name = "precio_unitario", precision = 10, scale = 2, nullable = false)
-    private BigDecimal precioUnitario;
+    private BigDecimal precioUnitario; // Sin IVA
 
     @Column(nullable = false)
     private Integer cantidad;
+
+    @Column(name = "porcentaje_iva", precision = 5, scale = 2, nullable = false)
+    private BigDecimal porcentajeIva;
+
+    @Column(name = "importe_iva", precision = 10, scale = 2, nullable = false)
+    private BigDecimal importeIva;
+    // ------------------------------------
 
     @ManyToOne
     @JoinColumn(name = "Productoscodigo_barras", nullable = false)
