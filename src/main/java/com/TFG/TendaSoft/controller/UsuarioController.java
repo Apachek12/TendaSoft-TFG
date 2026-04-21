@@ -32,6 +32,12 @@ public class UsuarioController {
         return new ResponseEntity<>(usuarioService.crearUsuario(usuario), HttpStatus.CREATED);
     }
 
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> eliminarUsuario(@PathVariable Integer id) {
+        usuarioService.eliminarUsuario(id);
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody java.util.Map<String, String> credenciales) {
         String username = credenciales.get("nombreUsuario");

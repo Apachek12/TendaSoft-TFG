@@ -1,5 +1,6 @@
 package com.TFG.TendaSoft.model;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -23,4 +24,10 @@ public class Categoria {
     @ManyToOne
     @JoinColumn(name = "Categoriasid")
     private Categoria categoriaPadre;
+
+    // --- ¡AÑADE ESTO! ---
+    // mappedBy debe coincidir con el nombre del campo en la clase Producto
+    @OneToMany(mappedBy = "categoria", fetch = FetchType.EAGER)
+    @JsonManagedReference // Indica que esta parte se incluye en el JSON
+    private java.util.List<Producto> productos;
 }

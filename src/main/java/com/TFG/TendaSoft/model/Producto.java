@@ -1,5 +1,6 @@
 package com.TFG.TendaSoft.model;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -29,6 +30,7 @@ public class Producto {
 
     @ManyToOne
     @JoinColumn(name = "Categoriasid", nullable = false)
+    @JsonBackReference
     private Categoria categoria;
 
     @Column(name = "porcentaje_iva", precision = 5, scale = 2, nullable = false)

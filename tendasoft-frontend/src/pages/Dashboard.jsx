@@ -1,10 +1,12 @@
 import React from 'react';
 import Topbar from './Topbar';
+import { useNavigate } from 'react-router-dom';
 import { Lock, MonitorSmartphone, Package, Users } from 'lucide-react';
 
 export default function Dashboard() {
   // Placeholder
-  const usuarioActual = { nombre: 'User', rol: 'USER' };
+  const usuarioActual = { nombre: 'User', rol: 'ADMIN' };
+  const navigate = useNavigate();
 
   // Componente reutilizable para los botones gigantes
   const MenuCard = ({ icon, title, onClick }) => (
@@ -36,7 +38,7 @@ export default function Dashboard() {
           <MenuCard
             icon={<MonitorSmartphone className="w-10 h-10 text-blue-500" />}
             title="CAJA"
-            onClick={() => console.log('Ir al TPV')}
+            onClick={() => navigate('/caja')}
           />
 
           {/* Botones exclusivos de Administrador */}
@@ -45,12 +47,12 @@ export default function Dashboard() {
               <MenuCard
                 icon={<Package className="w-10 h-10 text-slate-600" />}
                 title="INVENTARIO"
-                onClick={() => console.log('Ir a Inventario')}
+                onClick={() => navigate('/inventario')}
               />
               <MenuCard
                 icon={<Users className="w-10 h-10 text-teal-600" />}
                 title="USUARIOS"
-                onClick={() => console.log('Ir a Usuarios')}
+                onClick={() => navigate('/usuarios')}
               />
             </>
           )}

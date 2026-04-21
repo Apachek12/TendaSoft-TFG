@@ -29,4 +29,8 @@ public class UsuarioService {
         return usuarioRepository.findByNombreUsuario(username)
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
     }
+
+    public void eliminarUsuario(Integer id) {
+        usuarioRepository.deleteById(id);
+    }
 }
