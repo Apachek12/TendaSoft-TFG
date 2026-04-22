@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Users, Plus, Edit, Trash2 } from 'lucide-react';
+import { Users, Plus, Edit, Trash2, ArrowLeft } from 'lucide-react';
 import ModalAñadirUsuario from './AñadirUsuario';
 
 export default function Usuarios() {
@@ -47,10 +47,21 @@ const cargarUsuarios = async () => {
       <div className="max-w-5xl mx-auto">
 
         {/* Cabecera */}
-        <div className="flex justify-between items-center mb-8">
-          <div className="flex items-center text-slate-800">
-            <Users className="w-8 h-8 mr-3" />
-            <h1 className="text-2xl font-bold">Gestión de Usuarios</h1>
+        <div className="flex justify-between items-center mb-10">
+          {/* IZQUIERDA: Navegación + Título */}
+          <div className="flex items-center">
+            <button
+              onClick={() => navigate('/dashboard')}
+              className="mr-4 p-2 text-slate-500 hover:bg-slate-200 hover:text-slate-800 rounded-full transition-all"
+              title="Volver"
+            >
+              <ArrowLeft size={24} />
+            </button>
+
+            <div className="flex items-center text-slate-800 border-l pl-4 border-slate-200">
+              <Users className="w-7 h-7 text-slate-700 mr-3" />
+              <h1 className="text-2xl font-bold tracking-tight">Gestión de Inventario</h1>
+            </div>
           </div>
 
           <button
@@ -58,7 +69,7 @@ const cargarUsuarios = async () => {
             className="bg-teal-700 hover:bg-teal-800 text-white px-5 py-2.5 rounded-lg flex items-center font-medium transition-colors shadow-sm"
           >
             <Plus className="w-5 h-5 mr-2" />
-            AÑADIR USUARIO
+            Añadir usuario
           </button>
         </div>
 
