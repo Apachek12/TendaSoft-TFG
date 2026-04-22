@@ -2,13 +2,26 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Users, Plus, Edit, Trash2 } from 'lucide-react';
+import ModalAñadirUsuario from './AñadirUsuario';
 
 export default function Usuarios() {
   const [usuarios, setUsuarios] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
+const cargarUsuarios = async () => {
+      try {
+        // Asegúrate de que esta URL coincida con tu backend
+        const response = await axios.get('http://localhost:8080/api/usuarios');
+        setUsuarios(response.data);
+      } catch (err) {
+        setError('Error al cargar la lista de usuarios. Comprueba que el backend esté encendido.');
+      } finally {
+        setCargando(false);
+      }
+    };
   useEffect(() => {
     // 1. PROTECCIÓN DE RUTA: Comprobamos si es ADMIN
     const usuarioGuardado = localStorage.getItem('usuarioTendaSoft');
@@ -24,17 +37,7 @@ export default function Usuarios() {
     }
 
     // 2. CARGAR USUARIOS DESDE SPRING BOOT
-    const cargarUsuarios = async () => {
-      try {
-        // Asegúrate de que esta URL coincida con tu backend
-        const response = await axios.get('http://localhost:8080/api/usuarios');
-        setUsuarios(response.data);
-      } catch (err) {
-        setError('Error al cargar la lista de usuarios. Comprueba que el backend esté encendido.');
-      } finally {
-        setCargando(false);
-      }
-    };
+
 
     cargarUsuarios();
   }, [navigate]);
@@ -51,7 +54,7 @@ export default function Usuarios() {
           </div>
 
           <button
-            onClick={() => console.log("Abrir modal de crear usuario")}
+            onClick={() => setIsModalOpen(true)}
             className="bg-teal-700 hover:bg-teal-800 text-white px-5 py-2.5 rounded-lg flex items-center font-medium transition-colors shadow-sm"
           >
             <Plus className="w-5 h-5 mr-2" />
@@ -115,6 +118,13 @@ export default function Usuarios() {
         </div>
 
       </div>
+
+
+    <ModalAñadirUsuario
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSuccess={cargarUsuarios}
+    />
     </div>
   );
 }

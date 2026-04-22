@@ -1,191 +1,326 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { ChevronLeft, ChevronRight, Image as ImageIcon, Delete } from 'lucide-react';
+import { Delete, ImageIcon, ChevronLeft, ChevronRight, Trash2, Banknote, CreditCard, ArrowLeft, Printer } from 'lucide-react';
 
-export default function TPVScreen() {
-  const [showProducts, setShowProducts] = useState(false);
-  const [products, setProducts] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(true);
+export default function Caja() {
+  // --- ESTADOS LÓGICOS TPV ---
+  const [showProducts, setShowProducts] = useState(false); // Por defecto mostramos teclado
+  const [ventaActual, setVentaActual] = useState([]);
+  const [codigoInput, setCodigoInput] = useState('');
+  const [productos, setProductos] = useState([]);
+  const [categorias, setCategorias] = useState([]);
+  const [catSeleccionada, setCatSeleccionada] = useState('todas');
 
-  // 1. ELIMINADOS LOS PRODUCTOS DE PRUEBA (Iniciamos vacío)
-  const [transactionItems, setTransactionItems] = useState([]);
-  const [selectedCategoryId, setSelectedCategoryId] = useState('todos');
+  // --- ESTADOS LÓGICOS COBRO ---
+  // null = Vendiendo | 'seleccion' | 'efectivo' | 'tarjeta'
+  const [pasoPago, setPasoPago] = useState(null);
+  const [dineroEntregado, setDineroEntregado] = useState('');
+  const [cambio, setCambio] = useState(null);
 
+  const scrollCategoriasRef = useRef(null);
+  const total = ventaActual.reduce((acc, item) => acc + (item.precio * item.cantidad), 0);
+
+  // --- INTEGRACIÓN BACKEND ---
   useEffect(() => {
-    async function fetchData() {
+    const fetchData = async () => {
       try {
-        setLoading(true);
-        const [productsRes, categoriesRes] = await Promise.all([
+        const [resProd, resCat] = await Promise.all([
           axios.get('http://localhost:8080/api/productos'),
           axios.get('http://localhost:8080/api/categorias')
         ]);
-        setProducts(productsRes.data);
-        setCategories(categoriesRes.data);
-      } catch (err) {
-        console.error("Error cargando datos del TPV", err);
-      } finally {
-        setLoading(false);
-      }
-    }
+        setCategorias(resCat.data);
+
+        let productosCruzados = [];
+        resCat.data.forEach(cat => {
+          if (cat.productos) cat.productos.forEach(prod => productosCruzados.push({ ...prod, idCategoriaReal: cat.id }));
+        });
+
+        const productosFinales = resProd.data.map(p => {
+          const prodEncontrado = productosCruzados.find(pc => pc.codigoBarras === p.codigoBarras);
+          return { ...p, idCategoriaReal: prodEncontrado ? prodEncontrado.idCategoriaReal : 'sin-categoria' };
+        });
+        setProductos(productosFinales);
+      } catch (e) { console.error("Error cargando TPV", e); }
+    };
     fetchData();
   }, []);
 
-  // 2. FUNCIÓN PARA AÑADIR PRODUCTOS A LA VENTA
-  const addToSale = (product) => {
-    setTransactionItems(prevItems => {
-      // Comprobamos si el producto ya está en el carrito usando codigoBarras
-      const existingItem = prevItems.find(item => item.codigoBarras === product.codigoBarras);
-
-      if (existingItem) {
-        // Si ya existe, creamos un nuevo array con la cantidad incrementada
-        return prevItems.map(item =>
-          item.codigoBarras === product.codigoBarras
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
-        );
-      } else {
-        // Si es nuevo, lo añadimos con cantidad 1
-        return [...prevItems, {
-          codigoBarras: product.codigoBarras,
-          name: product.nombre,
-          price: product.precio,
-          quantity: 1
-        }];
-      }
+  // --- LÓGICA DE VENTA ---
+  const agregarProducto = (prod) => {
+    setVentaActual(prev => {
+      const existe = prev.find(item => item.codigoBarras === prod.codigoBarras);
+      if (existe) return prev.map(item => item.codigoBarras === prod.codigoBarras ? { ...item, cantidad: item.cantidad + 1 } : item);
+      return [...prev, { ...prod, cantidad: 1 }];
     });
+    setCodigoInput('');
   };
 
-  const total = transactionItems.reduce((sum, item) => sum + (item.quantity * item.price), 0);
+  const eliminarProductoDeVenta = (codigoBarras) => {
+    setVentaActual(prev => prev.filter(item => item.codigoBarras !== codigoBarras));
+  };
 
-  // Filtrado usando el campo Categoriasid de tu base de datos
-  const filteredProducts = selectedCategoryId === 'todos'
-    ? products
-    : products.filter(p => p.categoria?.id === selectedCategoryId);
+  const desplazarCategorias = (direccion) => {
+    if (scrollCategoriasRef.current) scrollCategoriasRef.current.scrollBy({ left: direccion === 'izq' ? -150 : 150, behavior: 'smooth' });
+  };
+
+  // --- LÓGICA DEL TECLADO INTELIGENTE ---
+  const handleNumpadClick = (n) => {
+    if (pasoPago === 'efectivo') setDineroEntregado(prev => prev + n);
+    else if (!pasoPago) setCodigoInput(prev => prev + n);
+  };
+
+  const handleNumpadDelete = () => {
+    if (pasoPago === 'efectivo') setDineroEntregado(prev => prev.slice(0, -1));
+    else if (!pasoPago) setCodigoInput(prev => prev.slice(0, -1));
+  };
+
+  const handleEnterClick = () => {
+    if (pasoPago === 'efectivo') {
+      calcularCambio();
+    } else if (!pasoPago) {
+      const encontrado = productos.find(p => p.codigoBarras === codigoInput);
+      if (encontrado) agregarProducto(encontrado);
+      else alert("Producto no encontrado");
+    }
+  };
+
+  // --- LÓGICA DE COBRO ---
+  const calcularCambio = () => {
+    // Reemplazamos coma por punto por si el usuario teclea decimales
+    const entregado = parseFloat(dineroEntregado.replace(',', '.'));
+    if (isNaN(entregado) || entregado < total) {
+      alert("La cantidad entregada es menor que el total o es inválida.");
+      return;
+    }
+    setCambio(entregado - total);
+  };
+
+  const finalizarVenta = async (imprimirTicket) => {
+    try {
+      const auth = JSON.parse(localStorage.getItem('usuarioTendaSoft'));
+
+      const payloadVenta = {
+        usuarioId: auth.idUsuario,
+        metodoPago: pasoPago.toUpperCase(),
+        total: total,
+        dineroEntregado: pasoPago === 'efectivo' ? parseFloat(dineroEntregado.replace(',', '.')) : total,
+        cambio: pasoPago === 'efectivo' ? cambio : 0,
+        lineas: ventaActual.map(item => ({
+          codigoBarras: item.codigoBarras,
+          cantidad: item.cantidad,
+          precioUnitario: item.precio
+        }))
+      };
+
+      await axios.post('http://localhost:8080/api/ventas', payloadVenta);
+      if (imprimirTicket) console.log("Imprimiendo ticket...");
+
+      alert("Venta finalizada con éxito");
+      setVentaActual([]);
+      setPasoPago(null);
+      setDineroEntregado('');
+      setCambio(null);
+    } catch (error) {
+            // Ahora React te mostrará el mensaje de error exacto que envía Java
+            const mensajeBackend = error.response?.data?.message || error.response?.data || "Error desconocido en el servidor";
+            alert("Error al finalizar la venta:\n\n" + mensajeBackend);
+            console.error("Detalles del error:", error);
+          }
+  };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex p-6 font-sans antialiased text-slate-800">
+    <div className="h-screen bg-[#F4F7F9] p-2 flex font-sans overflow-hidden antialiased">
 
-      {/* SECCIÓN IZQUIERDA: Detalle de la Venta */}
-      <div className="w-1/2 bg-white rounded-3xl shadow-sm border border-gray-100 flex flex-col mr-6 overflow-hidden">
-        <div className="flex p-6 border-b border-gray-100 text-xs font-bold text-slate-400 uppercase tracking-wider">
-          <div className="w-2/3">PRODUCTO</div>
-          <div className="w-1/6 text-center">CANT.</div>
-          <div className="w-1/6 text-right">PRECIO</div>
-        </div>
+      {/* === SECCIÓN IZQUIERDA (60%) === */}
+      <div className="w-[60%] h-full pr-2">
+        <div className="bg-white rounded-[16px] shadow-sm flex flex-col h-full overflow-hidden border-none relative">
 
-        <div className="flex-1 overflow-y-auto p-3 space-y-2">
-          {transactionItems.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-slate-300">
-              <p className="text-lg font-medium">No hay productos en la venta</p>
-              <p className="text-sm">Escanea un código o selecciona de la lista</p>
-            </div>
-          ) : (
-            transactionItems.map(item => (
-              <div key={item.codigoBarras} className="flex p-4 rounded-xl hover:bg-slate-50 items-center animate-in fade-in slide-in-from-left-2">
-                <div className="w-2/3">
-                  <p className="font-semibold text-slate-800">{item.name}</p>
-                  <p className="text-sm text-slate-400">{item.price.toFixed(2)} €</p>
-                </div>
-                <div className="w-1/6 text-center font-bold text-slate-700">
-                  x{item.quantity}
-                </div>
-                <div className="w-1/6 text-right font-bold text-slate-800">
-                  {(item.quantity * item.price).toFixed(2)} €
+          {/* MODO VENTA (TICKET) */}
+          {!pasoPago ? (
+            <>
+              <div className="flex bg-[#F8F9FA] px-4 py-2.5 text-[11px] font-bold text-[#7F8C8D] tracking-wider uppercase items-center">
+                <div className="flex-[2.5]">PRODUCTO</div>
+                <div className="flex-1 text-right">CANT.</div>
+                <div className="flex-[1.2] text-right">PRECIO</div>
+                <div className="w-8"></div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-2 scrollbar-thin">
+                {ventaActual.length === 0 ? (
+                  <div className="h-full flex items-center justify-center text-[#95A5A6] italic text-sm">Esperando productos...</div>
+                ) : (
+                  ventaActual.map(item => (
+                    <div key={item.codigoBarras} className="flex px-4 py-3 border-b border-[#F4F7F9] items-center animate-in fade-in slide-in-from-left-2">
+                      <div className="flex-[2.5]">
+                        <p className="font-bold text-[#2C3E50] text-sm">{item.nombre}</p>
+                        <p className="text-[10px] text-[#95A5A6]">{item.codigoBarras}</p>
+                      </div>
+                      <div className="flex-1 text-right font-bold text-[#2C3E50]">x{item.cantidad}</div>
+                      <div className="flex-[1.2] text-right font-black text-[#2C3E50]">{(item.precio * item.cantidad).toFixed(2)}€</div>
+                      <button onClick={() => eliminarProductoDeVenta(item.codigoBarras)} className="w-8 flex justify-end text-red-400 hover:text-red-600 ml-2">
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="h-[1px] bg-[#E0E6ED] w-full" />
+
+              <div className="h-20 flex items-center px-6 justify-between bg-white">
+                <button
+                  onClick={() => setPasoPago('seleccion')}
+                  disabled={ventaActual.length === 0}
+                  className="bg-[#2ECC71] text-white font-bold px-10 h-[56px] rounded-[12px] text-lg shadow-sm hover:bg-[#27ae60] active:scale-95 transition-all disabled:bg-slate-200 disabled:text-slate-400"
+                >
+                  COBRAR
+                </button>
+                <div className="text-right">
+                  <span className="text-[#2C3E50] text-[32px] font-black leading-none">{total.toFixed(2)} €</span>
                 </div>
               </div>
-            ))
-          )}
-        </div>
+            </>
+          ) : (
+            /* MODO PAGO (Aparece a la izquierda cubriendo el ticket) */
+            <div className="flex flex-col h-full animate-in zoom-in-95 duration-200 bg-white relative">
+              <button
+                onClick={() => { setPasoPago(null); setCambio(null); setDineroEntregado(''); }}
+                className="absolute top-4 left-4 p-2 flex items-center text-[#7F8C8D] hover:text-[#2C3E50] font-bold text-sm bg-slate-50 rounded-lg transition-colors"
+              >
+                <ArrowLeft size={18} className="mr-1" /> Volver al ticket
+              </button>
 
-        <div className="p-6 border-t border-gray-100 bg-slate-50 flex items-center justify-between">
-          <button
-            disabled={transactionItems.length === 0}
-            className="bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-200 text-white font-extrabold px-12 py-3.5 rounded-xl text-lg tracking-wide transition-all shadow-md"
-          >
-            COBRAR
-          </button>
-          <div className="text-right">
-            <p className="text-xs text-slate-400 font-medium">TOTAL</p>
-            <p className="text-3xl font-bold text-slate-800">{total.toFixed(2)} €</p>
-          </div>
+              {/* 1. SELECCIÓN DE MÉTODO */}
+              {pasoPago === 'seleccion' && (
+                <div className="flex flex-col items-center justify-center h-full px-12">
+                  <p className="text-[#1565C0] text-5xl font-black mb-10 text-center tracking-tight">TOTAL: {total.toFixed(2)} €</p>
+                  <p className="text-[#7F8C8D] text-xl font-bold mb-6 uppercase tracking-wider">Selecciona método de pago</p>
+
+                  <div className="flex w-full space-x-6">
+                    <button onClick={() => setPasoPago('efectivo')} className="flex-1 bg-[#2ECC71] text-white rounded-[16px] h-[100px] flex items-center justify-center text-2xl font-bold hover:bg-[#27ae60] active:scale-95 shadow-md transition-all">
+                      <Banknote className="mr-3" size={36} /> Efectivo
+                    </button>
+                    <button onClick={() => setPasoPago('tarjeta')} className="flex-1 bg-[#1976D2] text-white rounded-[16px] h-[100px] flex items-center justify-center text-2xl font-bold hover:bg-[#1565C0] active:scale-95 shadow-md transition-all">
+                      <CreditCard className="mr-3" size={36} /> Tarjeta
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* 2. PAGO EN EFECTIVO */}
+              {pasoPago === 'efectivo' && (
+                <div className="flex flex-col items-center justify-center h-full px-16 pt-8">
+                  <p className="text-[#1565C0] text-4xl font-black mb-8">TOTAL: {total.toFixed(2)} €</p>
+                  <p className="text-[#7F8C8D] text-lg font-bold mb-4">Cantidad entregada por el cliente:</p>
+
+                  <div className="w-full text-center text-5xl font-black text-[#2C3E50] border-2 border-gray-200 rounded-[16px] py-6 mb-6 bg-slate-50">
+                    {dineroEntregado ? `${dineroEntregado} €` : '0,00 €'}
+                  </div>
+
+                  {cambio !== null && (
+                    <div className="animate-in slide-in-from-bottom-4 flex flex-col items-center w-full">
+                      <p className="text-[#2ECC71] text-4xl font-black mb-8">Cambio: {cambio.toFixed(2)} €</p>
+                      <div className="flex w-full space-x-4">
+                        <button onClick={() => finalizarVenta(false)} className="flex-1 bg-[#2ECC71] text-white h-[72px] rounded-[16px] font-bold text-xl hover:bg-[#27ae60] active:scale-95 shadow-md transition-all">
+                          FINALIZAR
+                        </button>
+                        <button onClick={() => finalizarVenta(true)} className="flex-1 border-4 border-[#1976D2] text-[#1976D2] h-[72px] rounded-[16px] font-bold text-xl flex items-center justify-center hover:bg-blue-50 active:scale-95 transition-all">
+                          <Printer className="mr-2" size={24}/> TICKET
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* 3. PAGO CON TARJETA */}
+              {pasoPago === 'tarjeta' && (
+                <div className="flex flex-col items-center justify-center h-full px-16">
+                  <p className="text-[#7F8C8D] text-2xl font-bold mb-4">Procesar en datáfono:</p>
+                  <p className="text-[#1976D2] text-[64px] font-black mb-16 tracking-tighter">{total.toFixed(2)} €</p>
+
+                  <div className="flex w-full space-x-6">
+                    <button onClick={() => finalizarVenta(false)} className="flex-1 bg-[#2ECC71] text-white h-[80px] rounded-[16px] font-bold text-xl hover:bg-[#27ae60] active:scale-95 shadow-md transition-all">
+                      FINALIZAR
+                    </button>
+                    <button onClick={() => finalizarVenta(true)} className="flex-1 border-4 border-[#1976D2] text-[#1976D2] h-[80px] rounded-[16px] font-bold text-xl flex items-center justify-center hover:bg-blue-50 active:scale-95 transition-all">
+                      <Printer className="mr-2" size={24}/> TICKET
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* SECCIÓN DERECHA: Catálogo / Teclado */}
-      <div className="w-1/2 flex flex-col">
-        <input
-          type="text"
-          placeholder="Código de barras"
-          className="w-full p-5 bg-white border border-gray-100 rounded-xl shadow-sm mb-4 focus:outline-none focus:ring-2 focus:ring-slate-300"
-        />
+      {/* === SECCIÓN DERECHA (40%): Controles y Teclado Fijo === */}
+      <div className="w-[40%] h-full flex flex-col">
 
-        <button
-          onClick={() => setShowProducts(!showProducts)}
-          className="w-full p-5 bg-slate-700 hover:bg-slate-800 text-white font-bold rounded-xl mb-6 text-sm uppercase tracking-wider transition-colors"
-        >
-          {showProducts ? 'OCULTAR PRODUCTOS' : 'VER PRODUCTOS'}
-        </button>
+        {/* Controles Superiores (Solo visibles si NO estamos cobrando) */}
+        {!pasoPago && (
+          <div className="animate-in fade-in">
+            <input
+              type="text"
+              placeholder="Código de barras"
+              value={codigoInput}
+              onChange={(e) => setCodigoInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleEnterClick()}
+              className="w-full h-[48px] bg-white border border-gray-200 rounded-[8px] text-center text-[16px] font-bold text-[#2C3E50] focus:outline-none mb-2 shadow-sm"
+            />
+            <button onClick={() => setShowProducts(!showProducts)} className="w-full h-[44px] bg-[#2C3E50] text-white font-bold rounded-[8px] uppercase text-xs tracking-widest mb-3 shadow-sm active:scale-95">
+              {showProducts ? "OCULTAR PRODUCTOS" : "VER PRODUCTOS"}
+            </button>
+          </div>
+        )}
 
-        <div className="flex-1">
-          {showProducts ? (
-            <div className="flex flex-col h-full">
-              {/* Categorías */}
-              <div className="flex items-center space-x-2 bg-white p-3 rounded-xl border border-gray-100 shadow-sm mb-4 overflow-x-auto scrollbar-hide">
-                <button
-                  onClick={() => setSelectedCategoryId('todos')}
-                  className={`px-6 py-2 rounded-lg text-sm font-bold transition-colors whitespace-nowrap ${selectedCategoryId === 'todos' ? 'bg-slate-700 text-white' : 'bg-slate-100 text-slate-600'}`}
-                >
-                  Todos
-                </button>
-                {categories.map(cat => (
-                  <button
-                    key={cat.id}
-                    onClick={() => setSelectedCategoryId(cat.id)}
-                    className={`px-6 py-2 rounded-lg text-sm font-bold transition-colors whitespace-nowrap ${selectedCategoryId === cat.id ? 'bg-slate-700 text-white' : 'bg-slate-100 text-slate-600'}`}
-                  >
-                    {cat.nombre}
-                  </button>
-                ))}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* MODO CATÁLOGO (Solo si showProducts = true y NO estamos cobrando) */}
+          {showProducts && !pasoPago ? (
+            <div className="flex flex-col h-full animate-in fade-in duration-200">
+              <div className="flex items-center space-x-1 mb-3 w-full">
+                <button onClick={() => desplazarCategorias('izq')} className="p-1 hover:bg-white rounded-full"><ChevronLeft size={24} className="text-[#2C3E50]" /></button>
+                <div ref={scrollCategoriasRef} className="flex overflow-x-auto space-x-2 flex-1 px-1 py-1 scrollbar-hide">
+                  <button onClick={() => setCatSeleccionada('todas')} className={`px-4 py-2 rounded-[6px] text-[12px] font-bold whitespace-nowrap ${catSeleccionada === 'todas' ? 'bg-[#2C3E50] text-white' : 'bg-white text-[#2C3E50]'}`}>Todos</button>
+                  {categorias.map(cat => (
+                    <button key={cat.id} onClick={() => setCatSeleccionada(cat.id)} className={`px-4 py-2 rounded-[6px] text-[12px] font-bold whitespace-nowrap ${String(catSeleccionada) === String(cat.id) ? 'bg-[#2C3E50] text-white' : 'bg-white text-[#2C3E50]'}`}>{cat.nombre}</button>
+                  ))}
+                </div>
+                <button onClick={() => desplazarCategorias('der')} className="p-1 hover:bg-white rounded-full"><ChevronRight size={24} className="text-[#2C3E50]" /></button>
               </div>
-
-              {/* Grid de Productos - ACCIÓN AL HACER CLIC */}
-              <div className="flex-1 overflow-y-auto grid grid-cols-3 gap-4 pb-4">
-                {filteredProducts.map(prod => (
-                  <div
-                    key={prod.codigoBarras}
-                    onClick={() => addToSale(prod)} // <-- AQUÍ SE AÑADE A LA VENTA
-                    className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col items-center justify-center text-center cursor-pointer hover:border-emerald-400 hover:shadow-md transition-all group aspect-square active:scale-95"
-                  >
-                    <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4 group-hover:bg-emerald-50 transition-colors">
-                      <ImageIcon className="w-8 h-8 text-slate-300 group-hover:text-emerald-400" />
-                    </div>
-                    <p className="text-sm font-semibold text-slate-800 leading-tight mb-1">{prod.nombre}</p>
-                    <p className="font-bold text-slate-800">{prod.precio.toFixed(2)} €</p>
+              <div className="flex-1 overflow-y-auto grid grid-cols-3 gap-3 content-start pb-2">
+                {productos.filter(p => catSeleccionada === 'todas' || String(p.idCategoriaReal) === String(catSeleccionada)).map(p => (
+                  <div key={p.codigoBarras} onClick={() => agregarProducto(p)} className="bg-white rounded-[8px] p-3 flex flex-col items-center text-center cursor-pointer active:scale-95 shadow-sm">
+                    <ImageIcon size={24} className="text-[#2C3E50] mb-2" />
+                    <p className="text-[10px] font-bold text-[#7F8C8D] truncate w-full">{p.nombre}</p>
+                    <p className="text-[14px] font-black text-[#2C3E50]">{p.precio.toFixed(2)} €</p>
                   </div>
                 ))}
               </div>
             </div>
           ) : (
-            /* Teclado Numérico */
-            <div className="flex flex-col h-full">
-              <div className="grid grid-cols-3 gap-3 flex-1 mb-4">
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9, ',', 0].map(val => (
-                  <button
-                    key={val}
-                    className="bg-white hover:bg-slate-100 text-slate-800 text-4xl font-bold flex items-center justify-center rounded-2xl border border-gray-100 shadow-sm transition-transform active:scale-90"
-                  >
-                    {val}
-                  </button>
-                ))}
-                <button className="bg-white hover:bg-red-50 text-slate-800 flex items-center justify-center rounded-2xl border border-gray-100 shadow-sm">
-                  <Delete className="w-10 h-10 text-slate-400" />
-                </button>
-              </div>
-              <button className="w-full p-6 bg-slate-700 hover:bg-slate-800 text-white font-extrabold rounded-2xl text-2xl tracking-wider shadow-md active:scale-95 transition-all">
-                ENTER
-              </button>
+            /* MODO TECLADO NUMÉRICO (Siempre visible si cobramos o si showProducts = false) */
+            <div className={`grid grid-cols-3 gap-1.5 flex-1 pb-2 ${pasoPago ? 'pt-2' : ''}`}>
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, ',', 0].map(n => (
+                <button key={n} onClick={() => handleNumpadClick(n)} className="bg-white rounded-[12px] text-[28px] font-bold text-[#2C3E50] active:bg-slate-200 shadow-sm border border-gray-100">{n}</button>
+              ))}
+              <button onClick={handleNumpadDelete} className="bg-white rounded-[12px] flex items-center justify-center shadow-sm border border-gray-100"><Delete size={32} className="text-[#95A5A6]" /></button>
             </div>
+          )}
+
+          {/* Botón ENTER (Cambia su función y texto según el contexto) */}
+          {(!showProducts || pasoPago) && (
+            <button
+              onClick={handleEnterClick}
+              disabled={pasoPago === 'seleccion' || pasoPago === 'tarjeta'}
+              className={`w-full h-[72px] font-black rounded-[12px] text-[20px] tracking-widest mt-2 shadow-md active:scale-95 transition-all ${
+                pasoPago === 'efectivo' ? 'bg-[#2ECC71] text-white hover:bg-[#27ae60]' :
+                pasoPago ? 'bg-slate-300 text-slate-500' :
+                'bg-[#2C3E50] text-white hover:bg-[#1a252f]'
+              }`}
+            >
+              {pasoPago === 'efectivo' ? 'CALCULAR CAMBIO' : 'ENTER'}
+            </button>
           )}
         </div>
       </div>

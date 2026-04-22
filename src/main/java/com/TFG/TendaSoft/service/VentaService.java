@@ -1,5 +1,7 @@
 package com.TFG.TendaSoft.service;
 
+import com.TFG.TendaSoft.dto.EstadisticasDTO;
+import com.TFG.TendaSoft.dto.LineaVentaDTO;
 import com.TFG.TendaSoft.dto.VentaListadoDTO;
 import com.TFG.TendaSoft.model.DatosNegocio;
 import com.TFG.TendaSoft.model.LineaVenta;
@@ -27,7 +29,7 @@ public class VentaService {
     private final VentaRepository ventaRepository;
     private final LineaVentaRepository lineaVentaRepository;
     private final ProductoRepository productoRepository;
-    private final DatosNegocioRepository datosNegocioRepository; // Necesario para el NIF Emisor
+    private final DatosNegocioRepository datosNegocioRepository;
     private final VerifactuXmlService xmlService;
     private final FirmaDigitalService firmaDigitalService;
 
@@ -123,7 +125,6 @@ public class VentaService {
             lineaVentaRepository.save(linea);
         }
 
-        // --- ¡NUEVO PASO VERIFACTU! ---
         // 8. Generar el XML Oficial
         String xmlFactura = xmlService.generarXmlAltaFactura(ventaGuardada, lineas, negocio);
 
@@ -133,7 +134,6 @@ public class VentaService {
             throw new RuntimeException("El XML generado no cumple con el formato de la AEAT.");
         }
 
-        // --- ¡NUEVO! 10. Firmar el XML ---
         // Para esto necesitas la ruta de un certificado real o de prueba en tu PC
         String rutaCert = "C:/ruta/a/tu/certificado_prueba.p12";
         String passCert = "tu_contraseña_del_certificado";
@@ -192,7 +192,67 @@ public class VentaService {
                         .metodoPago(venta.getMetodoPago())
                         .estadoVerifactu(venta.getEstadoVerifactu())
                         .nombreCajero(venta.getUsuario() != null ? venta.getUsuario().getNombreUsuario() : "Desconocido")
+                        .lineas(venta.getLineas().stream()
+                                .map(l -> LineaVentaDTO.builder()
+                                        .nombreProducto(l.getNombreProducto())
+                                        .cantidad(l.getCantidad())
+                                        .precioUnitario(l.getPrecioUnitario())
+                                        .build())
+                                .toList())
                         .build())
                 .toList();
+    }
+
+    // ... dentro de tu VentaService
+
+    public EstadisticasDTO obtenerEstadisticasDePeriodo(Integer año, Integer mes, Integer dia) {
+        // 1. Reutilizamos tu método existente para obtener la lista de ventas
+        List<VentaListadoDTO> ventas = obtenerVentasPorPeriodo(año, mes, dia);
+
+        // 2. Si no hay ventas, devolvemos un DTO vacío para que React no explote
+        if (ventas.isEmpty()) {
+            return EstadisticasDTO.builder()
+                    .totalFacturado(BigDecimal.ZERO)
+                    .totalTickets(0L)
+                    .ticketMedio(BigDecimal.ZERO)
+                    .ventasPorMetodoPago(new java.util.HashMap<>())
+                    .productosVendidos(0L)
+                    .build();
+        }
+
+        // 3. Calculamos los totales usando la lista que ya recuperamos
+        BigDecimal totalFacturado = ventas.stream()
+                .map(VentaListadoDTO::getTotal)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        Long totalTickets = (long) ventas.size();
+
+        BigDecimal ticketMedio = totalFacturado.divide(
+                new BigDecimal(totalTickets), 2, java.math.RoundingMode.HALF_UP
+        );
+
+        // 4. Agrupamos por método de pago (EFECTIVO, TARJETA...)
+        java.util.Map<String, BigDecimal> ventasPorMetodo = ventas.stream()
+                .collect(java.util.stream.Collectors.groupingBy(
+                        VentaListadoDTO::getMetodoPago,
+                        java.util.stream.Collectors.reducing(
+                                BigDecimal.ZERO,
+                                VentaListadoDTO::getTotal,
+                                BigDecimal::add
+                        )
+                ));
+
+        // 5. Para los productos vendidos, como el DTO de listado no tiene las líneas,
+        // necesitamos una pequeña consulta extra o calcularlo desde las entidades
+        // (Opcional: puedes dejarlo en 0 si no lo necesitas mostrar ahora)
+        Long productosVendidos = 0L;
+
+        return EstadisticasDTO.builder()
+                .totalFacturado(totalFacturado)
+                .totalTickets(totalTickets)
+                .ticketMedio(ticketMedio)
+                .ventasPorMetodoPago(ventasPorMetodo)
+                .productosVendidos(productosVendidos)
+                .build();
     }
 }

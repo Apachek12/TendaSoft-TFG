@@ -47,4 +47,15 @@ public class CierreCajaController {
         );
         return ResponseEntity.ok(cajaCerrada);
     }
+
+    @GetMapping("/estado/{idUsuario}")
+    public ResponseEntity<CierreCaja> obtenerEstado(@PathVariable Integer idUsuario) {
+        CierreCaja caja = cierreCajaService.obtenerCajaAbierta(idUsuario);
+        return ResponseEntity.ok(caja); // Devuelve la caja si está abierta, o 'null' si está cerrada
+    }
+
+    @GetMapping("/resumen/{idUsuario}")
+    public ResponseEntity<?> obtenerResumen(@PathVariable Integer idUsuario) {
+        return ResponseEntity.ok(cierreCajaService.obtenerResumenActual(idUsuario));
+    }
 }

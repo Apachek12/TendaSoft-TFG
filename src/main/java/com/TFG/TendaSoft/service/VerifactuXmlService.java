@@ -134,20 +134,20 @@ public class VerifactuXmlService {
         try {
             ClassPathResource xsdResource = new ClassPathResource("schemas/SuministroLR.xsd");
             if (!xsdResource.exists()) {
-                System.out.println("⚠️ ATENCIÓN: No se ha encontrado el archivo XSD. Saltando validación.");
+                System.out.println("ATENCIÓN: No se ha encontrado el archivo XSD. Saltando validación.");
                 return true;
             }
             SchemaFactory factory = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);
             Schema schema = factory.newSchema(xsdResource.getFile());
             Validator validator = schema.newValidator();
             validator.validate(new StreamSource(new StringReader(xml)));
-            System.out.println("✅ El XML es VÁLIDO según el esquema de Hacienda.");
+            System.out.println("El XML es VÁLIDO según el esquema de Hacienda.");
             return true;
         } catch (SAXException e) {
-            System.err.println("❌ ERROR DE ESTRUCTURA XML: " + e.getMessage());
+            System.err.println("ERROR DE ESTRUCTURA XML: " + e.getMessage());
             return false;
         } catch (IOException e) {
-            System.err.println("❌ ERROR DE LECTURA.");
+            System.err.println("ERROR DE LECTURA.");
             return false;
         }
     }

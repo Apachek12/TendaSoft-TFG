@@ -47,8 +47,7 @@ public class UsuarioController {
             // Buscamos el usuario en la base de datos
             Usuario usuario = usuarioService.buscarPorUsername(username);
 
-            // Comparamos contraseñas (Ojo: para un TFG de 10, la contraseña debería estar encriptada con BCrypt,
-            // pero para arrancar y probar que la conexión funciona, la comparamos tal cual)
+            // TODO encriptar
             if (usuario != null && usuario.getHashContrasena().equals(password)) {
                 // Login correcto: devolvemos el usuario completo (incluyendo su rol ADMIN o VENDEDOR)
                 return ResponseEntity.ok(usuario);

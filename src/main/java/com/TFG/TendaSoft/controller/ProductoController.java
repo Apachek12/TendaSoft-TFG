@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 
@@ -30,10 +31,22 @@ public class ProductoController {
         return ResponseEntity.ok(producto);
     }
 
-    @PostMapping
-    public ResponseEntity<Producto> crearProducto(@RequestBody Producto producto) {
-        Producto nuevoProducto = productoService.guardarProducto(producto);
-        return new ResponseEntity<>(nuevoProducto, HttpStatus.CREATED); // Devuelve un 201 CREATED
+    // Sustituye tu método crearProducto por este:
+    @PostMapping(consumes = { org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE })
+    public ResponseEntity<Producto> crearProducto(
+            @RequestParam("nombre") String nombre,
+            @RequestParam("codigoBarras") String codigoBarras,
+            @RequestParam("precio") BigDecimal precio,
+            @RequestParam("unidades") Integer unidades,
+            @RequestParam("porcentajeIva") BigDecimal porcentajeIva,
+            @RequestParam("idCategoria") Integer idCategoria,
+            @RequestParam(value = "imagen", required = false) org.springframework.web.multipart.MultipartFile imagen) {
+
+        // Llamamos a un nuevo método en el service que gestione esto
+        Producto nuevo = productoService.guardarProductoConImagen(
+                nombre, codigoBarras, precio, unidades, porcentajeIva, idCategoria, imagen);
+
+        return new ResponseEntity<>(nuevo, HttpStatus.CREATED);
     }
 
     @PutMapping("/{codigoBarras}")

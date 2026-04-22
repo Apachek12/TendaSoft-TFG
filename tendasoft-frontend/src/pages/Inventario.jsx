@@ -6,6 +6,10 @@ import {
   Edit, Trash2, Image as ImageIcon, Tag
 } from 'lucide-react';
 
+// Importamos los nuevos modales
+import ModalAddProducto from './AñadirProducto';
+import ModalAddCategoria from './AñadirCategoria';
+
 export default function Inventario() {
   const [busqueda, setBusqueda] = useState('');
   const [categorias, setCategorias] = useState([]);
@@ -13,6 +17,10 @@ export default function Inventario() {
   const [error, setError] = useState('');
   const [categoriasAbiertas, setCategoriasAbiertas] = useState({});
   const navigate = useNavigate();
+
+  // Estados para controlar la visibilidad de los modales
+  const [modalProdOpen, setModalProdOpen] = useState(false);
+  const [modalCatOpen, setModalCatOpen] = useState(false);
 
   useEffect(() => {
     const auth = JSON.parse(localStorage.getItem('usuarioTendaSoft'));
@@ -30,7 +38,7 @@ export default function Inventario() {
       const response = await axios.get('http://localhost:8080/api/categorias');
       setCategorias(response.data);
 
-      // Opcional: Abrir todas las categorías por defecto al cargar
+      // Abrir todas las categorías por defecto al cargar
       const inicial = {};
       response.data.forEach(cat => inicial[cat.idCategoria] = true);
       setCategoriasAbiertas(inicial);
@@ -46,7 +54,6 @@ export default function Inventario() {
     setCategoriasAbiertas(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
-  // LÓGICA DE FILTRADO (Busca en categorías y productos)
   const categoriasFiltradas = categorias.filter(cat => {
     const coincideCategoria = cat.nombre.toLowerCase().includes(busqueda.toLowerCase());
     const coincideProducto = cat.productos?.some(p =>
@@ -59,7 +66,7 @@ export default function Inventario() {
     <div className="min-h-screen bg-slate-50 p-8 font-sans">
       <div className="max-w-6xl mx-auto">
 
-        {/* Cabecera - Icono sin fondo como pediste */}
+        {/* Cabecera - Botones conectados a los modales */}
         <div className="flex justify-between items-center mb-10">
           <div className="flex items-center text-slate-800">
             <Package className="w-9 h-9 text-slate-700 mr-4" />
@@ -67,10 +74,16 @@ export default function Inventario() {
           </div>
 
           <div className="flex space-x-3">
-            <button className="bg-white border border-slate-200 text-slate-700 px-5 py-2 rounded-lg font-semibold hover:bg-slate-100 transition-all flex items-center text-sm shadow-sm">
+            <button
+              onClick={() => setModalCatOpen(true)}
+              className="bg-white border border-slate-200 text-slate-700 px-5 py-2 rounded-lg font-semibold hover:bg-slate-100 transition-all flex items-center text-sm shadow-sm"
+            >
               <Plus className="w-4 h-4 mr-2" /> Nueva Categoría
             </button>
-            <button className="bg-slate-800 text-white px-5 py-2 rounded-lg font-semibold hover:bg-slate-900 transition-all flex items-center text-sm shadow-md">
+            <button
+              onClick={() => setModalProdOpen(true)}
+              className="bg-slate-800 text-white px-5 py-2 rounded-lg font-semibold hover:bg-slate-900 transition-all flex items-center text-sm shadow-md"
+            >
               <Plus className="w-4 h-4 mr-2" /> Nuevo Producto
             </button>
           </div>
@@ -112,7 +125,7 @@ export default function Inventario() {
                   </div>
 
                   <div className="flex items-center space-x-5 text-slate-400">
-                    <Plus className="w-5 h-5 cursor-pointer hover:text-slate-700 transition-colors" />
+                    <Plus className="w-5 h-5 cursor-pointer hover:text-slate-700 transition-colors" title="Añadir producto a esta categoría" />
                     <Tag className="w-5 h-5 cursor-pointer hover:text-slate-700 transition-colors" />
                     <Edit className="w-5 h-5 cursor-pointer hover:text-slate-700 transition-colors" />
                     <Trash2 className="w-5 h-5 cursor-pointer hover:text-red-500 transition-colors" />
@@ -160,6 +173,19 @@ export default function Inventario() {
           </div>
         )}
       </div>
+
+      {/* MODALES - Conectados a la función cargarInventario */}
+      <ModalAddProducto
+        isOpen={modalProdOpen}
+        onClose={() => setModalProdOpen(false)}
+        onSuccess={cargarInventario}
+      />
+
+      <ModalAddCategoria
+        isOpen={modalCatOpen}
+        onClose={() => setModalCatOpen(false)}
+        onSuccess={cargarInventario}
+      />
     </div>
   );
 }

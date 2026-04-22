@@ -41,4 +41,14 @@ public class VentaController {
 
         return ResponseEntity.ok(ventaService.obtenerVentasPorPeriodo(año, mes, dia));
     }
+
+    @GetMapping("/periodo")
+    public ResponseEntity<List<VentaListadoDTO>> obtenerVentas(
+            @RequestParam Integer año,
+            @RequestParam(required = false) Integer mes,
+            @RequestParam(required = false) Integer dia) {
+
+        List<VentaListadoDTO> ventas = ventaService.obtenerVentasPorPeriodo(año, mes, dia);
+        return ResponseEntity.ok(ventas);
+    }
 }

@@ -19,13 +19,13 @@ public class CierreCaja {
     @Column(name = "fecha_apertura", nullable = false)
     private LocalDateTime fechaApertura;
 
-    @Column(name = "fecha_cierre", nullable = false)
+    @Column(name = "fecha_cierre")
     private LocalDateTime fechaCierre;
 
     @Column(name = "fondo_inicial", precision = 10, scale = 2, nullable = false)
     private BigDecimal fondoInicial;
 
-    @Column(name = "total_ventas", precision = 19, scale = 0, nullable = false)
+    @Column(name = "total_ventas", precision = 19, scale = 2, nullable = false)
     private BigDecimal totalVentas;
 
     @Column(name = "fondo_final", precision = 10, scale = 2, nullable = false)
