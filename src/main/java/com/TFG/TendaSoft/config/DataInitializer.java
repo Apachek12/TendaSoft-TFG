@@ -7,6 +7,7 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.File;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -19,12 +20,37 @@ public class DataInitializer implements CommandLineRunner {
     private final CategoriaRepository categoriaRepository;
     private final ProductoRepository productoRepository;
     private final VentaRepository ventaRepository;
+    private final DatosNegocioRepository datosNegocioRepository;
 
     @Override
     @Transactional
     public void run(String... args) {
 
-        // 1. USUARIOS
+        // 1. OBTENER RUTA DINÁMICA DEL PROYECTO (Opción 1: Portabilidad total)
+        String directorioRaiz = System.getProperty("user.dir");
+        String nombreCertificado = "certificado_test.p12";
+        String rutaCompletaCert = directorioRaiz + File.separator + nombreCertificado;
+
+        // 2. DATOS DEL NEGOCIO (Configuración VeriFactu)
+        DatosNegocio negocio = new DatosNegocio();
+        negocio.setNombreEmpresa("TendaSoft Soluciones S.L.");
+        negocio.setCif("B12345678");
+        negocio.setDireccion("Avenida de la Tecnología, 42, Madrid");
+        negocio.setMensajeTicket("¡Gracias por su compra!");
+        negocio.setVerifactuActivado(true);
+        negocio.setRutaCertificado(rutaCompletaCert); // Guardamos la ruta dinámica
+
+        datosNegocioRepository.save(negocio);
+
+        // Verificación visual en consola al arrancar
+        File fileCert = new File(rutaCompletaCert);
+        if (fileCert.exists()) {
+            System.out.println("✅ CERTIFICADO ENCONTRADO EN: " + rutaCompletaCert);
+        } else {
+            System.err.println("❌ ATENCIÓN: No se encuentra '" + nombreCertificado + "' en la raíz del proyecto (" + directorioRaiz + ")");
+        }
+
+        // 3. USUARIOS
         Usuario admin = new Usuario();
         admin.setNombreReal("Fran García");
         admin.setNombreUsuario("admin");
@@ -39,7 +65,7 @@ public class DataInitializer implements CommandLineRunner {
         vendedor.setRol("VENDEDOR");
         usuarioRepository.save(vendedor);
 
-        // 2. CATEGORÍAS
+        // 4. CATEGORÍAS
         Categoria catBebidas = new Categoria();
         catBebidas.setNombre("Bebidas");
         catBebidas.setOrden(1);
@@ -50,7 +76,7 @@ public class DataInitializer implements CommandLineRunner {
         catAlimentacion.setOrden(2);
         categoriaRepository.save(catAlimentacion);
 
-        // 3. PRODUCTOS
+        // 5. PRODUCTOS
         Producto p1 = new Producto();
         p1.setCodigoBarras("8412345678901");
         p1.setNombre("Coca-Cola Original 33cl");
@@ -69,29 +95,27 @@ public class DataInitializer implements CommandLineRunner {
         p2.setCategoria(catAlimentacion);
         productoRepository.save(p2);
 
-        // 4. CREAR UNA VENTA DE PRUEBA (Simulando VeriFactu)
+        // 6. CREAR UNA VENTA DE PRUEBA (Simulando VeriFactu)
         Venta v = new Venta();
         v.setFecha(LocalDateTime.now());
         v.setUsuario(admin);
         v.setMetodoPago("EFECTIVO");
-        v.setTipoFactura("F1"); // Factura ordinaria
-        v.setNumeroFactura("FAC-2024-0001");
+        v.setTipoFactura("F1");
+        v.setNumeroFactura("FAC-2026-0001");
         v.setEstadoVerifactu("PENDIENTE");
-        v.setHashVerifactu("simulated_hash_123456");
+        v.setHashVerifactu("SIMULATED_HASH_654321");
 
-        // Totales de la venta
         v.setTotal(new BigDecimal("3.60"));
         v.setBaseImponibleTotal(new BigDecimal("3.10"));
         v.setCuotaIvaTotal(new BigDecimal("0.50"));
 
-        // Líneas de la venta
         v.setLineas(new ArrayList<>());
 
         LineaVenta lv1 = new LineaVenta();
         lv1.setProducto(p1);
         lv1.setNombreProducto(p1.getNombre());
         lv1.setCantidad(1);
-        lv1.setPrecioUnitario(new BigDecimal("1.24")); // Base imponible
+        lv1.setPrecioUnitario(new BigDecimal("1.24"));
         lv1.setPorcentajeIva(new BigDecimal("21.00"));
         lv1.setImporteIva(new BigDecimal("0.26"));
         lv1.setVenta(v);
@@ -109,6 +133,6 @@ public class DataInitializer implements CommandLineRunner {
 
         ventaRepository.save(v);
 
-        System.out.println(">>> Base de datos inicializada con datos VeriFactu y Ventas.");
+        System.out.println(">>> Base de datos inicializada: Usuarios, Productos, Ventas y Configuración de Negocio (Ruta Dinámica).");
     }
 }

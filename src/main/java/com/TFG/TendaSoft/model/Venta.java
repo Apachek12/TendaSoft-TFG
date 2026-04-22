@@ -50,7 +50,7 @@ public class Venta {
     @Column(name = "hash_anterior", length = 64)
     private String hashAnterior;
 
-    @Column(name = "estado_verifactu", length = 20, nullable = false)
+    @Column(name = "estado_verifactu", length = 50, nullable = false)
     private String estadoVerifactu;
 
     @ManyToOne

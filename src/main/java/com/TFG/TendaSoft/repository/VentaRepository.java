@@ -21,5 +21,7 @@ public interface VentaRepository extends JpaRepository<Venta, Long> {
 
     Optional<Venta> findFirstByOrderByIdDesc();
 
+    Optional<Venta> findFirstByNumeroFacturaStartingWithOrderByIdDesc(String prefijo);
+
     List<Venta> findByFechaBetweenOrderByFechaDesc(LocalDateTime inicio, LocalDateTime fin);
 }

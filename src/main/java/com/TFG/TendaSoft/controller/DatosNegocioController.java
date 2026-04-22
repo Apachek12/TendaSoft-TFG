@@ -3,9 +3,11 @@ package com.TFG.TendaSoft.controller;
 import com.TFG.TendaSoft.model.DatosNegocio;
 import com.TFG.TendaSoft.service.DatosNegocioService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import com.TFG.TendaSoft.repository.DatosNegocioRepository;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/configuracion")
@@ -14,23 +16,31 @@ import com.TFG.TendaSoft.repository.DatosNegocioRepository;
 public class DatosNegocioController {
 
     private final DatosNegocioService datosNegocioService;
-    private final DatosNegocioRepository datosNegocioRepository;
 
     @GetMapping
     public ResponseEntity<DatosNegocio> obtenerConfiguracion() {
         return ResponseEntity.ok(datosNegocioService.obtenerConfiguracion());
     }
 
-    @PostMapping
-    public ResponseEntity<?> crearDatosNegocio(@RequestBody DatosNegocio datosNegocio) {
-        // Forzamos el ID a 1 porque normalmente solo hay 1 empresa usando el TPV
-        datosNegocio.setId(1);
-        DatosNegocio guardado = datosNegocioRepository.save(datosNegocio);
-        return ResponseEntity.ok(guardado);
-    }
+    // Cambiamos a Multipart Form Data
+    @PostMapping(consumes = { MediaType.MULTIPART_FORM_DATA_VALUE })
+    public ResponseEntity<?> guardarConfiguracion(
+            @RequestParam("nombreEmpresa") String nombreEmpresa,
+            @RequestParam("cif") String cif,
+            @RequestParam("direccion") String direccion,
+            @RequestParam("mensajeTicket") String mensajeTicket,
+            @RequestParam("verifactuActivado") Boolean verifactuActivado,
+            @RequestParam(value = "logo", required = false) MultipartFile logo) {
 
-    @PutMapping
-    public ResponseEntity<DatosNegocio> actualizarConfiguracion(@RequestBody DatosNegocio datos) {
-        return ResponseEntity.ok(datosNegocioService.actualizarConfiguracion(datos));
+        try {
+            // Delegamos el guardado físico e inserción en BD al servicio
+            DatosNegocio guardado = datosNegocioService.guardarConfiguracionConLogo(
+                    nombreEmpresa, cif, direccion, mensajeTicket, verifactuActivado, logo);
+
+            return ResponseEntity.ok(guardado);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Error al guardar la configuración: " + e.getMessage());
+        }
     }
 }

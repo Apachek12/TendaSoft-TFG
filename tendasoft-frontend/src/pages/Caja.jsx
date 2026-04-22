@@ -101,26 +101,47 @@ export default function Caja() {
   };
 
   const finalizarVenta = async (imprimirTicket) => {
+    if (ventaActual.length === 0) return;
+
     try {
       const auth = JSON.parse(localStorage.getItem('usuarioTendaSoft'));
+
+      // 1. Construimos el JSON con la estructura que espera tu Backend
       const payloadVenta = {
-        usuarioId: auth.idUsuario,
-        metodoPago: pasoPago.toUpperCase(),
-        total: total,
-        dineroEntregado: pasoPago === 'efectivo' ? parseFloat(dineroEntregado.replace(',', '.')) : total,
-        cambio: pasoPago === 'efectivo' ? cambio : 0,
+        venta: {
+          usuario: {
+            idUsuario: parseInt(auth?.idUsuario || auth?.id)
+          },
+          metodoPago: pasoPago.toUpperCase(),
+          // Si tu backend guarda total/cambio dentro de 'venta', añádelos aquí:
+          total: parseFloat(total.toFixed(2)),
+          dineroEntregado: pasoPago === 'efectivo'
+            ? parseFloat(String(dineroEntregado).replace(',', '.'))
+            : parseFloat(total.toFixed(2)),
+          cambio: pasoPago === 'efectivo' ? parseFloat(cambio.toFixed(2)) : 0,
+        },
         lineas: ventaActual.map(item => ({
-          codigoBarras: item.codigoBarras,
-          cantidad: item.cantidad,
-          precioUnitario: item.precio
+          producto: {
+            codigoBarras: String(item.codigoBarras)
+          },
+          cantidad: parseInt(item.cantidad)
         }))
       };
+
+
       await axios.post('http://localhost:8080/api/ventas', payloadVenta);
-      alert("Venta finalizada con éxito");
-      setVentaActual([]); setPasoPago(null); setDineroEntregado(''); setCambio(null);
+
+      alert("¡Venta registrada con éxito!");
+
+      // Limpieza de estados
+      setVentaActual([]);
+      setPasoPago(null);
+      setDineroEntregado('');
+      setCambio(null);
+
     } catch (error) {
-      const mensajeBackend = error.response?.data?.message || error.response?.data || "Error desconocido";
-      alert("Error al finalizar la venta:\n\n" + mensajeBackend);
+      console.error("Error al vender:", error.response?.data);
+      alert("Error: " + (error.response?.data?.message || "Revisa la consola"));
     }
   };
 
@@ -274,10 +295,38 @@ export default function Caja() {
                 </div>
                 <div className="flex-1 overflow-y-auto grid grid-cols-3 gap-3 content-start pb-2">
                   {productos.filter(p => catSeleccionada === 'todas' || String(p.idCategoriaReal) === String(catSeleccionada)).map(p => (
-                    <div key={p.codigoBarras} onClick={() => agregarProducto(p)} className="bg-white rounded-[8px] p-3 flex flex-col items-center text-center cursor-pointer active:scale-95 shadow-sm">
-                      <ImageIcon size={24} className="text-[#2C3E50] mb-2" />
-                      <p className="text-[10px] font-bold text-[#7F8C8D] truncate w-full">{p.nombre}</p>
-                      <p className="text-[14px] font-black text-[#2C3E50]">{p.precio.toFixed(2)} €</p>
+                    <div
+                      key={p.codigoBarras}
+                      onClick={() => agregarProducto(p)}
+                      className="bg-white rounded-[12px] p-2 flex flex-col items-center text-center cursor-pointer active:scale-95 shadow-sm hover:shadow-md transition-all border border-slate-100"
+                    >
+                      {/* CONTENEDOR DE LA IMAGEN */}
+                      <div className="w-16 h-16 mb-2 rounded-lg overflow-hidden bg-slate-50 flex items-center justify-center shrink-0">
+                        {p.urlImagen ? (
+                          <img
+                            src={`http://localhost:8080/uploads/${p.urlImagen}`}
+                            alt={p.nombre}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              // Si la imagen no carga, mostramos el icono por defecto
+                              e.target.onerror = null;
+                              e.target.style.display = 'none'; // Ocultamos la etiqueta img rota
+                              e.target.nextSibling.style.display = 'block'; // Mostramos el ImageIcon
+                            }}
+                          />
+                        ) : null}
+
+                        {/* Icono de respaldo (Se muestra si no hay urlImagen, o si la carga falla) */}
+                        <ImageIcon
+                          size={24}
+                          className="text-slate-300"
+                          style={{ display: p.urlImagen ? 'none' : 'block' }}
+                        />
+                      </div>
+
+                      {/* TEXTOS DEL PRODUCTO */}
+                      <p className="text-[11px] font-bold text-[#2C3E50] truncate w-full leading-tight">{p.nombre}</p>
+                      <p className="text-[14px] font-black text-[#1976D2] mt-1">{p.precio.toFixed(2)} €</p>
                     </div>
                   ))}
                 </div>

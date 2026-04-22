@@ -24,8 +24,6 @@ import java.util.Map;
 
 @Service
 public class VerifactuXmlService {
-
-    // Plantilla base del XML ORDENADA según el esquema xs:sequence de la AEAT
     // Plantilla base del XML ORDENADA según el esquema xs:sequence de la AEAT
     private static final String PLANTILLA_XML = """
             <?xml version="1.0" encoding="UTF-8"?>

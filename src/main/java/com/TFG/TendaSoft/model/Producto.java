@@ -35,4 +35,6 @@ public class Producto {
 
     @Column(name = "porcentaje_iva", precision = 5, scale = 2, nullable = false)
     private BigDecimal porcentajeIva;
+
+    private Boolean activo = true;
 }

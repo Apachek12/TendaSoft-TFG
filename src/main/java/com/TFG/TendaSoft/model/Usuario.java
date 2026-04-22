@@ -25,4 +25,6 @@ public class Usuario {
 
     @Column(length = 20, nullable = false)
     private String rol; // "ADMIN" o "VENDEDOR"
+
+    private Boolean activo = true;
 }

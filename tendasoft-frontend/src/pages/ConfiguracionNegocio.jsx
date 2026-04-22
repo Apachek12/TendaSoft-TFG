@@ -6,7 +6,10 @@ export default function ConfiguracionNegocioModal({ isOpen, onClose }) {
   const [vista, setVista] = useState('fiscal');
   const [loading, setLoading] = useState(false);
 
-  // Estado inicial vinculado a tu Model DatosNegocio
+  // Estado para guardar el archivo físico del logo antes de enviarlo
+  const [logoFile, setLogoFile] = useState(null);
+  const [logoPreview, setLogoPreview] = useState(null);
+
   const [datos, setDatos] = useState({
     nombreEmpresa: '',
     cif: '',
@@ -17,7 +20,6 @@ export default function ConfiguracionNegocioModal({ isOpen, onClose }) {
     rutaCertificado: ''
   });
 
-  // 1. Cargar datos desde tu GET /api/configuracion
   useEffect(() => {
     if (isOpen) {
       axios.get('http://localhost:8080/api/configuracion')
@@ -28,15 +30,39 @@ export default function ConfiguracionNegocioModal({ isOpen, onClose }) {
     }
   }, [isOpen]);
 
-  // 2. Guardar datos usando tu POST /api/configuracion
+  // Función para manejar la selección del logo
+  const handleLogoChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setLogoFile(file);
+      // Creamos una URL temporal para mostrar la vista previa en el ticket
+      setLogoPreview(URL.createObjectURL(file));
+    }
+  };
+
   const handleGuardar = async () => {
     setLoading(true);
     try {
-      // Usamos POST porque tu controlador ya gestiona el ID 1 automáticamente
-      await axios.post('http://localhost:8080/api/configuracion', datos);
-      alert("Configuración guardada con éxito");
+      // Como ahora enviamos un archivo, usamos FormData
+      const formData = new FormData();
+      formData.append('nombreEmpresa', datos.nombreEmpresa);
+      formData.append('cif', datos.cif);
+      formData.append('direccion', datos.direccion);
+      formData.append('mensajeTicket', datos.mensajeTicket);
+      formData.append('verifactuActivado', datos.verifactuActivado);
 
-      // Si estamos en la primera pantalla, cerramos. Si no, nos quedamos en el diseño.
+      // Si el usuario seleccionó un logo nuevo, lo adjuntamos
+      if (logoFile) {
+        formData.append('logo', logoFile);
+      }
+
+      await axios.post('http://localhost:8080/api/configuracion', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+
+      alert("Configuración guardada con éxito");
       if (vista === 'fiscal') onClose();
     } catch (error) {
       console.error(error);
@@ -52,7 +78,6 @@ export default function ConfiguracionNegocioModal({ isOpen, onClose }) {
     <div className="fixed inset-0 bg-[#001D3D]/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-[24px] w-full max-w-2xl shadow-2xl overflow-hidden border border-gray-100 animate-in zoom-in-95 duration-200">
 
-        {/* Cabecera idéntica a la captura */}
         <div className="p-6 flex justify-between items-center bg-white border-b border-gray-50">
           <h2 className="text-[#001D3D] text-2xl font-black tracking-tight">
             {vista === 'fiscal' ? 'Datos fiscales y AEAT' : 'Configuración del ticket'}
@@ -141,22 +166,42 @@ export default function ConfiguracionNegocioModal({ isOpen, onClose }) {
                     onChange={e => setDatos({...datos, mensajeTicket: e.target.value})}
                   />
                 </div>
-                <button className="w-full h-14 border-2 border-dashed border-[#E0E6ED] rounded-2xl text-[#34495E] font-black text-xs flex items-center justify-center gap-3">
-                  <Upload size={18} /> CARGAR LOGO
-                </button>
-                <button onClick={() => setVista('fiscal')} className="text-[#00796B] font-black text-[10px] uppercase tracking-widest hover:underline">
+
+                {/* CORRECCIÓN: Input conectado mediante id y htmlFor */}
+                <label htmlFor="subir-logo-input" className="w-full h-14 border-2 border-dashed border-[#E0E6ED] rounded-2xl text-[#34495E] font-black text-xs flex items-center justify-center gap-3 cursor-pointer hover:bg-gray-50 transition-colors">
+                  <Upload size={18} /> {logoFile ? 'LOGO SELECCIONADO' : 'CARGAR LOGO'}
+                  <input
+                    id="subir-logo-input"
+                    type="file"
+                    accept="image/png, image/jpeg"
+                    className="hidden"
+                    onChange={handleLogoChange}
+                  />
+                </label>
+
+                <button onClick={() => setVista('fiscal')} className="text-[#00796B] font-black text-[10px] uppercase tracking-widest hover:underline mt-2">
                   Volver a datos fiscales
                 </button>
               </div>
 
               {/* Preview Real del Ticket */}
-              <div className="w-64 bg-white border-t-8 border-[#001D3D] p-5 shadow-xl text-[10px] font-mono text-[#2C3E50]">
-                <div className="text-center mb-6">
+              <div className="w-64 bg-white border-t-8 border-[#001D3D] p-5 shadow-xl text-[10px] font-mono text-[#2C3E50] flex flex-col items-center">
+
+                {/* Muestra la vista previa del logo o el logo ya guardado en BD */}
+                {(logoPreview || datos.rutaLogo) && (
+                  <img
+                    src={logoPreview || `http://localhost:8080/uploads/${datos.rutaLogo}`}
+                    alt="Logo Ticket"
+                    className="w-16 h-16 object-contain mb-3 grayscale contrast-125"
+                  />
+                )}
+
+                <div className="text-center mb-6 w-full">
                   <p className="font-black text-xs mb-1 uppercase tracking-tighter">{datos.nombreEmpresa || 'NOMBRE DE LA TIENDA'}</p>
                   <p className="opacity-60">CIF: {datos.cif || '---------'}</p>
                   <p className="opacity-60 uppercase">{datos.direccion || 'DIRECCIÓN'}</p>
                 </div>
-                <div className="border-t border-dashed border-gray-300 my-3 pt-3">
+                <div className="border-t border-dashed border-gray-300 my-3 pt-3 w-full">
                   <div className="flex justify-between font-black mb-2 uppercase">
                     <span>CANT. CONCEPTO</span>
                     <span>IMPORTE</span>
@@ -166,11 +211,11 @@ export default function ConfiguracionNegocioModal({ isOpen, onClose }) {
                     <span>10,00 €</span>
                   </div>
                 </div>
-                <div className="border-t-2 border-black my-3 pt-3 flex justify-between font-black text-sm">
+                <div className="border-t-2 border-black my-3 pt-3 flex justify-between font-black text-sm w-full">
                   <span>TOTAL</span>
                   <span>10,00 €</span>
                 </div>
-                <div className="text-center mt-6 space-y-3 opacity-60">
+                <div className="text-center mt-6 space-y-3 opacity-60 w-full">
                   <p className="font-bold italic">"{datos.mensajeTicket || 'Gracias por su visita'}"</p>
                   <div className="w-12 h-12 bg-gray-100 mx-auto flex items-center justify-center text-[8px] border border-gray-200 uppercase">QR</div>
                   <p className="text-[7px] tracking-[4px] font-black">SISTEMA VERIFACTU</p>
@@ -179,7 +224,6 @@ export default function ConfiguracionNegocioModal({ isOpen, onClose }) {
             </div>
           )}
 
-          {/* Botón Guardar Final */}
           <button
             onClick={handleGuardar}
             disabled={loading}
