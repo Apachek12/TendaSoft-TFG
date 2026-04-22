@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
   Package, Search, Plus, ChevronDown, ChevronRight,
-  Edit, Trash2, Image as ImageIcon, Tag
+  Edit, Trash2, Image as ImageIcon, Tag, ArrowLeft
 } from 'lucide-react';
 
 // Importamos los nuevos modales
@@ -68,23 +68,35 @@ export default function Inventario() {
 
         {/* Cabecera - Botones conectados a los modales */}
         <div className="flex justify-between items-center mb-10">
-          <div className="flex items-center text-slate-800">
-            <Package className="w-9 h-9 text-slate-700 mr-4" />
-            <h1 className="text-2xl font-bold tracking-tight">Gestión de Inventario</h1>
+          {/* IZQUIERDA: Navegación + Título */}
+          <div className="flex items-center">
+            <button
+              onClick={() => navigate('/dashboard')}
+              className="mr-4 p-2 text-slate-500 hover:bg-slate-200 hover:text-slate-800 rounded-full transition-all"
+              title="Volver al inicio"
+            >
+              <ArrowLeft size={24} />
+            </button>
+
+            <div className="flex items-center text-slate-800 border-l pl-4 border-slate-200">
+              <Package className="w-7 h-7 text-slate-700 mr-3" />
+              <h1 className="text-2xl font-bold tracking-tight">Gestión de Inventario</h1>
+            </div>
           </div>
 
-          <div className="flex space-x-3">
+          {/* DERECHA: Acciones principales en la misma línea */}
+          <div className="flex items-center space-x-3">
             <button
               onClick={() => setModalCatOpen(true)}
-              className="bg-white border border-slate-200 text-slate-700 px-5 py-2 rounded-lg font-semibold hover:bg-slate-100 transition-all flex items-center text-sm shadow-sm"
+              className="bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-lg font-semibold hover:bg-slate-100 transition-all flex items-center text-sm shadow-sm"
             >
-              <Plus className="w-4 h-4 mr-2" /> Nueva Categoría
+              <Plus className="w-4 h-4 mr-2" /> Categoría
             </button>
             <button
               onClick={() => setModalProdOpen(true)}
-              className="bg-slate-800 text-white px-5 py-2 rounded-lg font-semibold hover:bg-slate-900 transition-all flex items-center text-sm shadow-md"
+              className="bg-slate-800 text-white px-4 py-2 rounded-lg font-semibold hover:bg-slate-900 transition-all flex items-center text-sm shadow-md"
             >
-              <Plus className="w-4 h-4 mr-2" /> Nuevo Producto
+              <Plus className="w-4 h-4 mr-2" /> Producto
             </button>
           </div>
         </div>

@@ -9,11 +9,13 @@ import lombok.Setter;
 @Getter
 @Setter
 public class Usuario {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id_usuario")
     private Integer idUsuario;
+
+    @Column(name = "nombre_real", length = 100, nullable = false)
+    private String nombreReal;
 
     @Column(name = "nombre_usuario", length = 50, unique = true, nullable = false)
     private String nombreUsuario;
@@ -22,5 +24,5 @@ public class Usuario {
     private String hashContrasena;
 
     @Column(length = 20, nullable = false)
-    private String rol;
+    private String rol; // "ADMIN" o "VENDEDOR"
 }

@@ -83,17 +83,36 @@ export default function Facturacion() {
   return (
     <div className="h-screen bg-[#F4F7F9] p-6 flex flex-col font-sans overflow-hidden antialiased">
 
-      {/* Cabecera con Badge de Admin */}
-      <div className="flex items-center justify-between mb-6 flex-shrink-0">
+      {/* Cabecera */}
+      <div className="flex items-center justify-between mb-8 flex-shrink-0">
+        {/* IZQUIERDA: Navegación + Título e Icono */}
         <div className="flex items-center">
-          <h1 className="text-[#2C3E50] text-3xl font-bold tracking-tight mr-4">Facturación y Reportes</h1>
+          {/* Botón Volver circular */}
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="mr-4 p-2 text-slate-500 hover:bg-slate-200 hover:text-slate-800 rounded-full transition-all"
+            title="Volver al inicio"
+          >
+            <ArrowLeft size={24} />
+          </button>
+
+          {/* Separador vertical y bloque de título */}
+          <div className="flex items-center text-[#2C3E50] border-l pl-4 border-slate-200">
+            {/* Icono de Facturación */}
+            <FileText className="mr-4 text-[#2C3E50]" size={32} />
+
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight leading-none">
+                Facturación y Reportes
+              </h1>
+              <p className="text-[#7F8C8D] text-sm mt-1 font-medium">
+                Consulta de ventas, tickets y estadísticas generales
+              </p>
+            </div>
+          </div>
         </div>
-        <button
-          onClick={() => navigate('/dashboard')}
-          className="flex items-center text-[#2C3E50] bg-white px-4 py-2 rounded-lg font-bold shadow-sm hover:bg-slate-50 transition-colors"
-        >
-          <ArrowLeft size={20} className="mr-2" /> Volver al Inicio
-        </button>
+
+        {/* DERECHA: Espacio para filtros rápidos si los añades (ej: Selector de fecha) */}
       </div>
 
       <div className="flex-1 flex gap-6 overflow-hidden">

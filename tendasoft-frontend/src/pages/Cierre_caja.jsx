@@ -104,17 +104,33 @@ export default function CierreCaja() {
     <div className="h-screen w-screen overflow-hidden bg-[#F4F7F9] p-6 flex flex-col font-sans">
 
       {/* Cabecera superior con botón de volver */}
-      <div className="flex items-center justify-between mb-6 flex-shrink-0">
-        <div>
-          <h1 className="text-[#2C3E50] text-3xl font-bold tracking-tight">Apertura y Cierre</h1>
-          <p className="text-[#7F8C8D] text-sm mt-1 font-medium capitalize">Día en curso: {fecha}</p>
+      <div className="flex items-center justify-between mb-8 flex-shrink-0">
+        {/* IZQUIERDA: Botón de navegación + Título e Icono */}
+        <div className="flex items-center">
+          {/* Botón Volver circular y sutil */}
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="mr-4 p-2 text-slate-500 hover:bg-slate-200 hover:text-slate-800 rounded-full transition-all"
+            title="Volver al inicio"
+          >
+            <ArrowLeft size={24} />
+          </button>
+
+          {/* Divisor vertical y bloque de contenido */}
+          <div className="flex items-center text-[#2C3E50] border-l pl-4 border-slate-200">
+            {/* Candado alineado con el texto */}
+            <Lock className="mr-4 text-[#2C3E50]" size={32} />
+
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight leading-none">
+                Apertura y Cierre
+              </h1>
+              <p className="text-[#7F8C8D] text-sm mt-1 font-medium capitalize">
+                Día en curso: {fecha}
+              </p>
+            </div>
+          </div>
         </div>
-        <button
-          onClick={() => navigate('/dashboard')}
-          className="flex items-center text-[#2C3E50] bg-white px-4 py-2 rounded-lg font-bold shadow-sm hover:bg-slate-50 transition-colors"
-        >
-          <ArrowLeft size={20} className="mr-2" /> Volver al Inicio
-        </button>
       </div>
 
       {/* Contenedor Principal (Expande para llenar la pantalla) */}
