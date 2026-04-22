@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import {
   Search, FileText, ChevronDown, ChevronUp,
-  CheckCircle2, XCircle, AlertCircle,
+  CheckCircle2, XCircle, AlertCircle, Clock,
   BarChart3, ArrowLeft, Lock
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -111,8 +111,6 @@ export default function Facturacion() {
             </div>
           </div>
         </div>
-
-        {/* DERECHA: Espacio para filtros rápidos si los añades (ej: Selector de fecha) */}
       </div>
 
       <div className="flex-1 flex gap-6 overflow-hidden">
@@ -175,13 +173,11 @@ export default function Facturacion() {
           </div>
         </div>
 
-        {/* COLUMNA DERECHA (55%): Lista de Facturas (Clon de la Imagen) */}
+        {/* COLUMNA DERECHA (55%): Lista de Facturas */}
         <div className="w-[55%] h-full overflow-hidden flex flex-col">
 
           <div className="flex-1 overflow-y-auto pr-2 pb-6 scrollbar-hide">
 
-            {/* Buscador superior */}
-            {/* --- INICIO DEL BLOQUE CORREGIDO (Línea 180 aprox.) --- */}
             {tickets.length > 0 ? (
               <div className="space-y-4">
                 {tickets.map((ticket) => (
@@ -203,15 +199,41 @@ export default function Facturacion() {
                       <div className="flex items-center space-x-6">
                         <p className="font-black text-[#2C3E50] text-xl">{(ticket.total || 0).toFixed(2)} €</p>
 
-                        <div className={`flex items-center space-x-2 px-4 py-2 rounded-full border-2 ${
-                          ticket.estadoVerifactu === 'PENDIENTE_ENVIO' ? 'bg-orange-50 border-orange-100 text-orange-600' :
-                          ticket.estadoVerifactu === 'ERROR' ? 'bg-red-50 border-red-100 text-red-600' :
-                          'bg-green-50 border-green-100 text-green-600'
-                        }`}>
-                          {ticket.estadoVerifactu === 'PENDIENTE_ENVIO' ? <AlertCircle size={16} /> :
-                           ticket.estadoVerifactu === 'ERROR' ? <XCircle size={16} /> : <CheckCircle2 size={16} />}
-                          <span className="text-[11px] font-black uppercase tracking-tighter">VeriFactu</span>
-                        </div>
+                        {/* --- LÓGICA DE VERIFACTU A PRUEBA DE FALLOS --- */}
+                        {(() => {
+                          const estadoVF = ticket.estadoVerifactu ? ticket.estadoVerifactu.toUpperCase().trim() : 'SIN_DATOS';
+                          const isPendiente = estadoVF === 'PENDIENTE' || estadoVF === 'PENDIENTE_ENVIO';
+                          const isError = estadoVF === 'ERROR';
+                          const isEnviada = estadoVF === 'ENVIADA' || estadoVF === 'CORRECTO';
+
+                          let clases = 'bg-slate-50 border-slate-200 text-slate-500';
+                          let texto = 'Sin datos';
+
+                          if (isPendiente) {
+                            clases = 'bg-amber-50 border-amber-200 text-amber-600';
+                            texto = 'Pendiente';
+                          } else if (isError) {
+                            clases = 'bg-red-50 border-red-200 text-red-600';
+                            texto = 'Error';
+                          } else if (isEnviada) {
+                            clases = 'bg-green-50 border-green-200 text-green-600';
+                            texto = 'VeriFactu';
+                          }
+
+                          return (
+                            <div className={`flex items-center space-x-2 px-3 py-1.5 rounded-full border shadow-sm ${clases}`}>
+                              {isPendiente && <Clock size={14} />}
+                              {isError && <AlertCircle size={14} />}
+                              {isEnviada && <CheckCircle2 size={14} />}
+                              {(!isPendiente && !isError && !isEnviada) && <AlertCircle size={14} />}
+
+                              <span className="text-[10px] font-black uppercase tracking-widest">
+                                {texto}
+                              </span>
+                            </div>
+                          );
+                        })()}
+
                         {expandedId === ticket.idVenta ? <ChevronUp className="text-[#95A5A6]" /> : <ChevronDown className="text-[#95A5A6]" />}
                       </div>
                     </div>

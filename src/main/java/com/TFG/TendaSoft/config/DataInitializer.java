@@ -132,7 +132,5 @@ public class DataInitializer implements CommandLineRunner {
         v.getLineas().add(lv2);
 
         ventaRepository.save(v);
-
-        System.out.println(">>> Base de datos inicializada: Usuarios, Productos, Ventas y Configuración de Negocio (Ruta Dinámica).");
     }
 }
