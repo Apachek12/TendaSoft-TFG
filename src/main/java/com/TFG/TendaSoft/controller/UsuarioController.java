@@ -1,6 +1,7 @@
 package com.TFG.TendaSoft.controller;
 
 import com.TFG.TendaSoft.model.Usuario;
+import com.TFG.TendaSoft.repository.UsuarioRepository;
 import com.TFG.TendaSoft.service.UsuarioService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -16,6 +17,7 @@ import java.util.List;
 public class UsuarioController {
 
     private final UsuarioService usuarioService;
+    private final UsuarioRepository usuarioRepository;
 
     @GetMapping
     public ResponseEntity<List<Usuario>> obtenerTodos() {
@@ -32,10 +34,36 @@ public class UsuarioController {
         return new ResponseEntity<>(usuarioService.crearUsuario(usuario), HttpStatus.CREATED);
     }
 
+    // --- ACTUALIZAR USUARIO ---
+    @PutMapping("/{id}")
+    public ResponseEntity<?> actualizarUsuario(@PathVariable Integer id, @RequestBody Usuario datosActualizados) {
+        return usuarioRepository.findById(id).map(usuario -> {
+            usuario.setNombreReal(datosActualizados.getNombreReal());
+            usuario.setNombreUsuario(datosActualizados.getNombreUsuario());
+            usuario.setRol(datosActualizados.getRol());
+
+            // Solo actualizamos contraseña si se envía una nueva
+            if (datosActualizados.getHashContrasena() != null && !datosActualizados.getHashContrasena().isEmpty()) {
+                usuario.setHashContrasena(datosActualizados.getHashContrasena());
+            }
+
+            usuarioRepository.save(usuario);
+            return ResponseEntity.ok(usuario);
+        }).orElse(ResponseEntity.notFound().build());
+    }
+
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> eliminarUsuario(@PathVariable Integer id) {
-        usuarioService.eliminarUsuario(id);
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<?> toggleEstadoUsuario(@PathVariable Integer id) {
+        return usuarioRepository.findById(id).map(usuario -> {
+            // Leemos el estado actual (si es null por algún motivo, asumimos que era true)
+            boolean estadoActual = usuario.getActivo() != null ? usuario.getActivo() : true;
+
+            // Lo invertimos: si era true pasa a false, y si era false pasa a true
+            usuario.setActivo(!estadoActual);
+
+            usuarioRepository.save(usuario);
+            return ResponseEntity.ok().build();
+        }).orElse(ResponseEntity.notFound().build());
     }
 
     @PostMapping("/login")
@@ -48,7 +76,7 @@ public class UsuarioController {
             Usuario usuario = usuarioService.buscarPorUsername(username);
 
             // TODO encriptar
-            if (usuario != null && usuario.getHashContrasena().equals(password)) {
+            if (usuario != null && usuario.getActivo() == true && usuario.getHashContrasena().equals(password)) {
                 // Login correcto: devolvemos el usuario completo (incluyendo su rol ADMIN o VENDEDOR)
                 return ResponseEntity.ok(usuario);
             } else {

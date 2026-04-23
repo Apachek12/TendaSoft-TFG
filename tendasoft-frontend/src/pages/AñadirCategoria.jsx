@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { X, ChevronDown } from 'lucide-react';
 
-export default function AñadirCategoria({ isOpen, onClose, onSuccess }) {
+export default function AñadirCategoria({ isOpen, onClose, onSuccess, categoriaEdit }) {
   const [loading, setLoading] = useState(false);
   const [categoriasPadre, setCategoriasPadre] = useState([]);
   const [formData, setFormData] = useState({
@@ -11,29 +11,68 @@ export default function AñadirCategoria({ isOpen, onClose, onSuccess }) {
     padreId: ''
   });
 
-  // Cargar categorías existentes para el selector de "Padre"
   useEffect(() => {
     if (isOpen) {
+      // 1. Cargar las categorías padre disponibles
       axios.get('http://localhost:8080/api/categorias')
         .then(res => setCategoriasPadre(res.data))
         .catch(err => console.error("Error cargando categorías"));
-    }
-  }, [isOpen]);
 
-  const handleGuardar = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      await axios.post('http://localhost:8080/api/categorias', formData);
-      onSuccess();
-      setFormData({ nombre: '', esSubcategoria: false, padreId: '' });
-      onClose();
-    } catch (err) {
-      alert("Error al guardar la categoría");
-    } finally {
-      setLoading(false);
+      // 2. Carga segura a prueba de nulos
+      if (categoriaEdit) {
+        setFormData({
+          nombre: categoriaEdit.nombre || '',
+          // Usamos !! para forzar que sea un booleano real (true/false)
+          esSubcategoria: !!categoriaEdit.categoriaPadre,
+          // Optional chaining (?.) por si categoriaPadre viene nulo
+          padreId: categoriaEdit.categoriaPadre?.id || categoriaEdit.categoriaPadre?.idCategoria || ''
+        });
+      } else {
+        // Limpieza total al crear nueva
+        setFormData({ nombre: '', esSubcategoria: false, padreId: '' });
+      }
     }
+  }, [isOpen, categoriaEdit]);
+
+const handleGuardar = async (e) => {
+  e.preventDefault();
+  setLoading(true);
+
+  // 1. Preparamos el objeto básico
+  const payload = {
+    nombre: formData.nombre,
+    orden: 1
   };
+
+  // 2. Si es subcategoría, enviamos el objeto padre con su ID
+  if (formData.esSubcategoria && formData.padreId) {
+    payload.categoriaPadre = {
+      // IMPORTANTE: El nombre del campo debe coincidir con el de tu entidad Java
+      id: parseInt(formData.padreId),
+      idCategoria: parseInt(formData.padreId) // Enviamos ambos por si acaso
+    };
+  } else {
+    // Si no es subcategoría, nos aseguramos de que el padre sea null
+    payload.categoriaPadre = null;
+  }
+
+  try {
+    if (categoriaEdit) {
+      const idAEditar = categoriaEdit.id || categoriaEdit.idCategoria;
+      await axios.put(`http://localhost:8080/api/categorias/${idAEditar}`, payload);
+    } else {
+      await axios.post('http://localhost:8080/api/categorias', payload);
+    }
+
+    onSuccess();
+    onClose();
+  } catch (err) {
+    console.error("Error al guardar categoría:", err);
+    alert("No se pudo guardar la relación de parentesco.");
+  } finally {
+    setLoading(false);
+  }
+};
 
   if (!isOpen) return null;
 
@@ -41,7 +80,9 @@ export default function AñadirCategoria({ isOpen, onClose, onSuccess }) {
     <div className="fixed inset-0 bg-[#001D3D]/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-[24px] w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200 p-8">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-[#001D3D] text-2xl font-black tracking-tight">Añadir categoría</h2>
+          <h2 className="text-[#001D3D] text-2xl font-black tracking-tight">
+            {categoriaEdit ? 'Editar categoría' : 'Añadir categoría'}
+          </h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={24} /></button>
         </div>
 
@@ -73,9 +114,17 @@ export default function AñadirCategoria({ isOpen, onClose, onSuccess }) {
                 onChange={(e) => setFormData({...formData, padreId: e.target.value})}
               >
                 <option value="">Categoría padre</option>
-                {categoriasPadre.map(cat => (
-                  <option key={cat.id} value={cat.id}>{cat.nombre}</option>
-                ))}
+                {categoriasPadre.map(cat => {
+                  const catId = cat.id || cat.idCategoria;
+                  const editId = categoriaEdit ? (categoriaEdit.id || categoriaEdit.idCategoria) : null;
+
+                  // Protección clave: Evitar que una categoría se ponga a sí misma como padre
+                  if (categoriaEdit && catId === editId) return null;
+
+                  return (
+                    <option key={catId} value={catId}>{cat.nombre}</option>
+                  );
+                })}
               </select>
               <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 text-[#001D3D] pointer-events-none" size={20} />
             </div>
@@ -84,9 +133,9 @@ export default function AñadirCategoria({ isOpen, onClose, onSuccess }) {
           <button
             type="submit"
             disabled={loading}
-            className="w-full h-16 border-2 border-[#001D3D] text-[#001D3D] font-black rounded-2xl hover:bg-[#001D3D] hover:text-white transition-all uppercase tracking-widest mt-4"
+            className="w-full h-16 border-2 border-[#001D3D] text-[#001D3D] font-black rounded-2xl hover:bg-[#001D3D] hover:text-white transition-all uppercase tracking-widest mt-4 shadow-lg shadow-slate-200"
           >
-            {loading ? 'GUARDANDO...' : 'GUARDAR CATEGORÍA'}
+            {loading ? 'GUARDANDO...' : (categoriaEdit ? 'ACTUALIZAR CATEGORÍA' : 'GUARDAR CATEGORÍA')}
           </button>
         </form>
       </div>
