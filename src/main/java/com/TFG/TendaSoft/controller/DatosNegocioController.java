@@ -22,20 +22,20 @@ public class DatosNegocioController {
         return ResponseEntity.ok(datosNegocioService.obtenerConfiguracion());
     }
 
-    // Cambiamos a Multipart Form Data
     @PostMapping(consumes = { MediaType.MULTIPART_FORM_DATA_VALUE })
     public ResponseEntity<?> guardarConfiguracion(
             @RequestParam("nombreEmpresa") String nombreEmpresa,
             @RequestParam("cif") String cif,
             @RequestParam("direccion") String direccion,
-            @RequestParam("mensajeTicket") String mensajeTicket,
+            @RequestParam(value = "mensajeTicket", required = false) String mensajeTicket,
             @RequestParam("verifactuActivado") Boolean verifactuActivado,
-            @RequestParam(value = "logo", required = false) MultipartFile logo) {
+            @RequestParam(value = "logo", required = false) MultipartFile logo,
+            @RequestParam(value = "certificado", required = false) MultipartFile certificado) { // <-- AÑADIDO EL CERTIFICADO
 
         try {
-            // Delegamos el guardado físico e inserción en BD al servicio
-            DatosNegocio guardado = datosNegocioService.guardarConfiguracionConLogo(
-                    nombreEmpresa, cif, direccion, mensajeTicket, verifactuActivado, logo);
+            // Actualizamos la llamada al servicio para enviar también el certificado.
+            DatosNegocio guardado = datosNegocioService.guardarConfiguracion(
+                    nombreEmpresa, cif, direccion, mensajeTicket, verifactuActivado, logo, certificado);
 
             return ResponseEntity.ok(guardado);
         } catch (Exception e) {

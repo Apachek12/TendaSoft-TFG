@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { X, Upload, Check, ChevronRight } from 'lucide-react';
+import { X, Upload, Check, ChevronRight, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
 
-export default function ConfiguracionNegocioModal({ isOpen, onClose }) {
+// 1. AÑADIMOS onConfiguracionGuardada A LAS PROPIEDADES
+export default function ConfiguracionNegocioModal({ isOpen, onClose, onConfiguracionGuardada }) {
   const [vista, setVista] = useState('fiscal');
   const [loading, setLoading] = useState(false);
 
-  // Estado para guardar el archivo físico del logo antes de enviarlo
+  // Estados para archivos físicos antes de enviar
   const [logoFile, setLogoFile] = useState(null);
   const [logoPreview, setLogoPreview] = useState(null);
+  const [certificadoFile, setCertificadoFile] = useState(null);
 
   const [datos, setDatos] = useState({
     nombreEmpresa: '',
@@ -30,20 +32,37 @@ export default function ConfiguracionNegocioModal({ isOpen, onClose }) {
     }
   }, [isOpen]);
 
-  // Función para manejar la selección del logo
   const handleLogoChange = (e) => {
     const file = e.target.files[0];
     if (file) {
       setLogoFile(file);
-      // Creamos una URL temporal para mostrar la vista previa en el ticket
       setLogoPreview(URL.createObjectURL(file));
     }
+  };
+
+  const handleCertificadoChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setCertificadoFile(file);
+    }
+  };
+
+  // --- LÓGICA DE VALIDACIÓN VERIFACTU ---
+  const tieneNif = datos.cif && datos.cif.trim() !== '';
+  const tieneCertificado = (datos.rutaCertificado && datos.rutaCertificado.trim() !== '') || certificadoFile !== null;
+  const puedeActivarVerifactu = tieneNif && tieneCertificado;
+
+  const handleToggleVerifactu = () => {
+    if (!datos.verifactuActivado && !puedeActivarVerifactu) {
+      alert("No puedes activar VeriFactu. Faltan requisitos obligatorios (NIF o Certificado Digital).");
+      return;
+    }
+    setDatos({ ...datos, verifactuActivado: !datos.verifactuActivado });
   };
 
   const handleGuardar = async () => {
     setLoading(true);
     try {
-      // Como ahora enviamos un archivo, usamos FormData
       const formData = new FormData();
       formData.append('nombreEmpresa', datos.nombreEmpresa);
       formData.append('cif', datos.cif);
@@ -51,18 +70,24 @@ export default function ConfiguracionNegocioModal({ isOpen, onClose }) {
       formData.append('mensajeTicket', datos.mensajeTicket);
       formData.append('verifactuActivado', datos.verifactuActivado);
 
-      // Si el usuario seleccionó un logo nuevo, lo adjuntamos
       if (logoFile) {
         formData.append('logo', logoFile);
       }
+      if (certificadoFile) {
+        formData.append('certificado', certificadoFile);
+      }
 
       await axios.post('http://localhost:8080/api/configuracion', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
+        headers: { 'Content-Type': 'multipart/form-data' }
       });
 
       alert("Configuración guardada con éxito");
+
+      // 2. AVISAMOS A LA TOPBAR DE QUE LOS DATOS HAN CAMBIADO
+      if (onConfiguracionGuardada) {
+        onConfiguracionGuardada();
+      }
+
       if (vista === 'fiscal') onClose();
     } catch (error) {
       console.error(error);
@@ -122,26 +147,65 @@ export default function ConfiguracionNegocioModal({ isOpen, onClose }) {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between p-4 bg-[#F8F9FA] rounded-2xl my-6">
-                <div>
-                  <p className="font-bold text-[#2C3E50]">Activar envío automático a Hacienda</p>
-                  <p className="text-xs text-[#95A5A6]">Cumplimiento con sistema VeriFactu</p>
+              {/* --- SECCIÓN INTELIGENTE VERIFACTU --- */}
+              <div className="p-5 bg-slate-50 border border-slate-200 rounded-2xl my-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <p className="font-bold text-[#2C3E50]">Integración AEAT (VeriFactu)</p>
+                    <p className="text-xs text-[#95A5A6]">Envío automático e inalterable de facturas</p>
+                  </div>
+                  <button
+                    onClick={handleToggleVerifactu}
+                    className={`w-14 h-8 rounded-full transition-all relative ${
+                      datos.verifactuActivado ? 'bg-[#00796B]' : 'bg-gray-300'
+                    } ${!datos.verifactuActivado && !puedeActivarVerifactu ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    title={!puedeActivarVerifactu && !datos.verifactuActivado ? 'Faltan requisitos' : ''}
+                  >
+                    <div className={`absolute top-1 bg-white w-6 h-6 rounded-full shadow-sm transition-all ${datos.verifactuActivado ? 'left-7' : 'left-1'}`} />
+                  </button>
                 </div>
-                <button
-                  onClick={() => setDatos({...datos, verifactuActivado: !datos.verifactuActivado})}
-                  className={`w-14 h-8 rounded-full transition-all relative ${datos.verifactuActivado ? 'bg-[#001D3D]' : 'bg-gray-300'}`}
-                >
-                  <div className={`absolute top-1 bg-white w-6 h-6 rounded-full shadow-sm transition-all ${datos.verifactuActivado ? 'left-7' : 'left-1'}`} />
-                </button>
+
+                {/* Checklist de Requisitos */}
+                <div className="space-y-3 pt-4 border-t border-slate-200">
+                  <p className="text-[10px] font-black text-[#95A5A6] uppercase tracking-widest mb-1">Requisitos del Sistema</p>
+
+                  <div className="flex items-center justify-between text-sm font-bold">
+                    <span className="text-slate-600">NIF configurado</span>
+                    {tieneNif ? <CheckCircle2 className="text-green-500 w-5 h-5"/> : <XCircle className="text-red-400 w-5 h-5"/>}
+                  </div>
+
+                  <div className="flex items-center justify-between text-sm font-bold">
+                    <span className="text-slate-600">Certificado Digital (.p12)</span>
+                    {tieneCertificado ? <CheckCircle2 className="text-green-500 w-5 h-5"/> : <XCircle className="text-red-400 w-5 h-5"/>}
+                  </div>
+                </div>
+
+                {!puedeActivarVerifactu && !datos.verifactuActivado && (
+                  <div className="mt-4 flex items-start bg-red-50 p-3 rounded-lg border border-red-100">
+                    <AlertTriangle size={16} className="text-red-500 mt-0.5 mr-2 shrink-0" />
+                    <p className="text-xs font-bold text-red-700">
+                      Debes completar los requisitos anteriores para encender la integración.
+                    </p>
+                  </div>
+                )}
               </div>
 
-              <button className="w-full h-14 border-2 border-dashed border-[#E0E6ED] rounded-2xl text-[#34495E] font-black text-xs flex items-center justify-center gap-3 hover:bg-gray-50 uppercase tracking-widest transition-all">
-                <Upload size={18} /> Cargar Certificado Digital (.p12)
-              </button>
+              {/* Botón real de carga de Certificado */}
+              <label htmlFor="subir-cert-input" className="w-full h-14 border-2 border-dashed border-[#E0E6ED] rounded-2xl text-[#34495E] font-black text-xs flex items-center justify-center gap-3 hover:bg-gray-50 uppercase tracking-widest transition-all cursor-pointer">
+                <Upload size={18} />
+                {certificadoFile || datos.rutaCertificado ? 'CERTIFICADO CARGADO' : 'CARGAR CERTIFICADO DIGITAL (.p12)'}
+                <input
+                  id="subir-cert-input"
+                  type="file"
+                  accept=".p12,.pfx"
+                  className="hidden"
+                  onChange={handleCertificadoChange}
+                />
+              </label>
 
               <button
                 onClick={() => setVista('ticket')}
-                className="w-full h-14 bg-gray-100 text-[#001D3D] font-black rounded-2xl hover:bg-gray-200 transition-all uppercase text-xs tracking-widest flex items-center justify-center"
+                className="w-full h-14 bg-gray-100 text-[#001D3D] font-black rounded-2xl hover:bg-gray-200 transition-all uppercase text-xs tracking-widest flex items-center justify-center mt-2"
               >
                 Configurar Ticket <ChevronRight size={18} className="ml-2" />
               </button>
@@ -167,7 +231,6 @@ export default function ConfiguracionNegocioModal({ isOpen, onClose }) {
                   />
                 </div>
 
-                {/* CORRECCIÓN: Input conectado mediante id y htmlFor */}
                 <label htmlFor="subir-logo-input" className="w-full h-14 border-2 border-dashed border-[#E0E6ED] rounded-2xl text-[#34495E] font-black text-xs flex items-center justify-center gap-3 cursor-pointer hover:bg-gray-50 transition-colors">
                   <Upload size={18} /> {logoFile ? 'LOGO SELECCIONADO' : 'CARGAR LOGO'}
                   <input
@@ -186,8 +249,6 @@ export default function ConfiguracionNegocioModal({ isOpen, onClose }) {
 
               {/* Preview Real del Ticket */}
               <div className="w-64 bg-white border-t-8 border-[#001D3D] p-5 shadow-xl text-[10px] font-mono text-[#2C3E50] flex flex-col items-center">
-
-                {/* Muestra la vista previa del logo o el logo ya guardado en BD */}
                 {(logoPreview || datos.rutaLogo) && (
                   <img
                     src={logoPreview || `http://localhost:8080/uploads/${datos.rutaLogo}`}
@@ -195,7 +256,6 @@ export default function ConfiguracionNegocioModal({ isOpen, onClose }) {
                     className="w-16 h-16 object-contain mb-3 grayscale contrast-125"
                   />
                 )}
-
                 <div className="text-center mb-6 w-full">
                   <p className="font-black text-xs mb-1 uppercase tracking-tighter">{datos.nombreEmpresa || 'NOMBRE DE LA TIENDA'}</p>
                   <p className="opacity-60">CIF: {datos.cif || '---------'}</p>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom'; // Asegúrate de tener navigate
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Delete, ImageIcon, ChevronLeft, ChevronRight, Trash2, Banknote, CreditCard, ArrowLeft, Printer, Monitor } from 'lucide-react';
 
@@ -148,7 +148,7 @@ export default function Caja() {
   return (
     <div className="h-screen bg-[#F4F7F9] p-4 flex flex-col font-sans overflow-hidden antialiased">
 
-      {/* === CABECERA NUEVA === */}
+      {/* === CABECERA === */}
       <div className="flex items-center justify-between mb-4 flex-shrink-0">
         <div className="flex items-center">
           <button
@@ -162,7 +162,7 @@ export default function Caja() {
           <div className="flex items-center text-[#2C3E50] border-l pl-4 border-slate-200">
             <Monitor className="mr-4 text-[#2C3E50]" size={32} />
             <div>
-              <h1 className="text-2xl font-bold tracking-tight leading-none uppercase">Terminal Punto de Venta</h1>
+              <h1 className="text-2xl font-bold tracking-tight leading-none capitalize">Punto de Venta</h1>
               <p className="text-[#7F8C8D] text-xs mt-1 font-bold">
                 Atendido por: <span className="text-[#1976D2]">{usuarioNombre}</span>
               </p>
@@ -171,7 +171,7 @@ export default function Caja() {
         </div>
       </div>
 
-      {/* === CONTENIDO TPV (Tus secciones originales) === */}
+      {/* === CONTENIDO TPV === */}
       <div className="flex flex-1 overflow-hidden">
         {/* === SECCIÓN IZQUIERDA (60%) === */}
         <div className="w-[60%] h-full pr-2">

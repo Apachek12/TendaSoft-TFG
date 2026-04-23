@@ -45,47 +45,60 @@ public class DatosNegocioService {
     }
 
     @Transactional
-    public DatosNegocio guardarConfiguracionConLogo(String nombreEmpresa, String cif,
-                                                    String direccion, String mensajeTicket,
-                                                    Boolean verifactuActivado, MultipartFile logo) {
+    public DatosNegocio guardarConfiguracion(String nombreEmpresa, String cif,
+                                             String direccion, String mensajeTicket,
+                                             Boolean verifactuActivado,
+                                             MultipartFile logo,
+                                             MultipartFile certificado) { // <-- Recibimos ambos archivos
 
-        // 1. Recuperamos la configuración actual o creamos una nueva forzando el ID a 1
+        // 1. Recuperamos la configuración actual o creamos una nueva
         DatosNegocio config = obtenerConfiguracion();
-        config.setId(1);
+        config.setId(1); // Forzamos que siempre sea la fila 1
         config.setNombreEmpresa(nombreEmpresa);
         config.setCif(cif);
         config.setDireccion(direccion);
         config.setMensajeTicket(mensajeTicket);
         config.setVerifactuActivado(verifactuActivado);
 
-        // 2. Si viene un logo nuevo, lo procesamos
+        // 2. Si viene un logo nuevo, lo procesamos usando el método auxiliar
         if (logo != null && !logo.isEmpty()) {
-            try {
-                // Comprobamos la carpeta uploads
-                File directorio = new File("uploads");
-                if (!directorio.exists()) {
-                    directorio.mkdirs();
-                }
-
-                // Generamos un nombre seguro para el logo (ej: logo_tienda.png)
-                // Usamos currentTimeMillis para que si subes otro logo distinto mañana, no se pisen en la caché del navegador
-                String nombreOriginalLimpio = logo.getOriginalFilename().replaceAll("\\s+", "_");
-                String nombreArchivo = "logo_" + System.currentTimeMillis() + "_" + nombreOriginalLimpio;
-
-                Path rutaCompleta = Paths.get("uploads" + File.separator + nombreArchivo);
-
-                // Guardamos el binario
-                Files.write(rutaCompleta, logo.getBytes());
-
-                // Guardamos SOLO la ruta lógica
-                config.setRutaLogo(nombreArchivo);
-
-            } catch (IOException e) {
-                throw new RuntimeException("No se pudo guardar el archivo de logo en el servidor.", e);
-            }
+            String rutaLogo = guardarArchivoFisico(logo, "logo_");
+            config.setRutaLogo(rutaLogo);
         }
 
-        // 3. Guardamos en Base de Datos
+        // 3. Si viene un certificado nuevo, lo procesamos
+        if (certificado != null && !certificado.isEmpty()) {
+            String rutaCert = guardarArchivoFisico(certificado, "cert_");
+            config.setRutaCertificado(rutaCert);
+        }
+
+        // 4. Guardamos en Base de Datos
         return datosNegocioRepository.save(config);
+    }
+
+    // --- MÉTODO AUXILIAR PARA NO REPETIR CÓDIGO ---
+    private String guardarArchivoFisico(MultipartFile archivo, String prefijo) {
+        try {
+            // Comprobamos la carpeta uploads
+            File directorio = new File("uploads");
+            if (!directorio.exists()) {
+                directorio.mkdirs();
+            }
+
+            // Generamos un nombre seguro para el archivo
+            String nombreOriginalLimpio = archivo.getOriginalFilename().replaceAll("\\s+", "_");
+            String nombreArchivo = prefijo + System.currentTimeMillis() + "_" + nombreOriginalLimpio;
+
+            Path rutaCompleta = Paths.get("uploads" + File.separator + nombreArchivo);
+
+            // Guardamos el binario
+            Files.write(rutaCompleta, archivo.getBytes());
+
+            // Devolvemos el nombre generado para guardarlo en la base de datos
+            return nombreArchivo;
+
+        } catch (IOException e) {
+            throw new RuntimeException("No se pudo guardar el archivo " + archivo.getOriginalFilename() + " en el servidor.", e);
+        }
     }
 }

@@ -33,22 +33,14 @@ public class DataInitializer implements CommandLineRunner {
 
         // 2. DATOS DEL NEGOCIO (Configuración VeriFactu)
         DatosNegocio negocio = new DatosNegocio();
-        negocio.setNombreEmpresa("TendaSoft Soluciones S.L.");
+        negocio.setNombreEmpresa("TendaSoft S.L.");
         negocio.setCif("B12345678");
-        negocio.setDireccion("Avenida de la Tecnología, 42, Madrid");
+        negocio.setDireccion("Calle de prueba");
         negocio.setMensajeTicket("¡Gracias por su compra!");
         negocio.setVerifactuActivado(true);
-        negocio.setRutaCertificado(rutaCompletaCert); // Guardamos la ruta dinámica
+        negocio.setRutaCertificado(rutaCompletaCert);
 
         datosNegocioRepository.save(negocio);
-
-        // Verificación visual en consola al arrancar
-        File fileCert = new File(rutaCompletaCert);
-        if (fileCert.exists()) {
-            System.out.println("✅ CERTIFICADO ENCONTRADO EN: " + rutaCompletaCert);
-        } else {
-            System.err.println("❌ ATENCIÓN: No se encuentra '" + nombreCertificado + "' en la raíz del proyecto (" + directorioRaiz + ")");
-        }
 
         // 3. USUARIOS
         Usuario admin = new Usuario();
@@ -95,7 +87,7 @@ public class DataInitializer implements CommandLineRunner {
         p2.setCategoria(catAlimentacion);
         productoRepository.save(p2);
 
-        // 6. CREAR UNA VENTA DE PRUEBA (Simulando VeriFactu)
+        // 6. VENTA DE PRUEBA (Simulando VeriFactu)
         Venta v = new Venta();
         v.setFecha(LocalDateTime.now());
         v.setUsuario(admin);

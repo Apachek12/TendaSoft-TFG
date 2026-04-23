@@ -28,7 +28,7 @@ public class Producto {
     @Column(name = "url_imagen", length = 255)
     private String urlImagen;
 
-    @ManyToOne
+    @ManyToOne (fetch = FetchType.LAZY)
     @JoinColumn(name = "Categoriasid", nullable = false)
     @JsonBackReference
     private Categoria categoria;

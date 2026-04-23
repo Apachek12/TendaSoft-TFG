@@ -22,12 +22,12 @@ public class Categoria {
     @Column(nullable = false)
     private Integer orden;
 
-    @ManyToOne
+    @ManyToOne (fetch = FetchType.LAZY)
     @JoinColumn(name = "Categoriasid")
     private Categoria categoriaPadre;
 
 
-    @OneToMany(mappedBy = "categoria", fetch = FetchType.EAGER)
+    @OneToMany(mappedBy = "categoria", fetch = FetchType.LAZY)
     @JsonManagedReference
     private java.util.List<Producto> productos;
 }

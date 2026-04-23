@@ -31,11 +31,11 @@ public class LineaVenta {
     private BigDecimal importeIva;
     // ------------------------------------
 
-    @ManyToOne
+    @ManyToOne (fetch = FetchType.LAZY)
     @JoinColumn(name = "Productoscodigo_barras", nullable = false)
     private Producto producto;
 
-    @ManyToOne
+    @ManyToOne (fetch = FetchType.LAZY)
     @JoinColumn(name = "Ventaid", nullable = false)
     private Venta venta;
 }

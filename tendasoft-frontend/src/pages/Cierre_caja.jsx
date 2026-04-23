@@ -122,10 +122,10 @@ export default function CierreCaja() {
             <Lock className="mr-4 text-[#2C3E50]" size={32} />
 
             <div>
-              <h1 className="text-3xl font-bold tracking-tight leading-none">
+              <h1 className="text-2xl font-bold tracking-tight leading-none">
                 Apertura y Cierre
               </h1>
-              <p className="text-[#7F8C8D] text-sm mt-1 font-medium capitalize">
+              <p className="text-[#7F8C8D] text-sm mt-1 font-medium">
                 Día en curso: {fecha}
               </p>
             </div>
