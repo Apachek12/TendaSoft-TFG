@@ -40,6 +40,16 @@ public class VentaController {
         }
     }
 
+    @PostMapping("/reintentar/{id}")
+    public ResponseEntity<?> reintentarVerifactu(@PathVariable Long id) {
+        try {
+            Venta ventaActualizada = ventaService.reintentarTramiteVerifactu(id);
+            return ResponseEntity.ok(ventaActualizada);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+        }
+    }
+
     @GetMapping("/historial")
     public ResponseEntity<List<VentaListadoDTO>> listarVentasHistorial(
             @RequestParam(name = "año") Integer año,

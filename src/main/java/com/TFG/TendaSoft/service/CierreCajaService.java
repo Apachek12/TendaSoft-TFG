@@ -31,13 +31,26 @@ public class CierreCajaService {
         CierreCaja caja = obtenerCajaAbierta(idUsuario);
         if (caja == null) return new ResumenCajaDTO();
 
-        // Calculamos el total de ventas desde que se abrió esta caja
-        BigDecimal total = ventaRepository.calcularTotalVentasDesde(idUsuario, caja.getFechaApertura());
-        BigDecimal totalFinal = (total != null) ? total : BigDecimal.ZERO;
+        LocalDateTime desde = caja.getFechaApertura();
 
-        // Aquí podrías desglosar efectivo/tarjeta si tu repositorio lo permite
-        // Por ahora, devolvemos el total acumulado
-        return new ResumenCajaDTO(totalFinal, totalFinal, BigDecimal.ZERO, BigDecimal.ZERO);
+        // 1. Calculamos el total global
+        BigDecimal totalGlobal = ventaRepository.calcularTotalVentasDesde(idUsuario, desde);
+
+        // 2. Calculamos el desglose (importante que los Strings coincidan con lo que envías desde React)
+        BigDecimal efectivo = ventaRepository.calcularTotalPorMetodo(idUsuario, desde, "EFECTIVO");
+        BigDecimal tarjeta = ventaRepository.calcularTotalPorMetodo(idUsuario, desde, "TARJETA");
+
+        // 3. Calculamos "otros" (si hubiera) o simplemente lo dejamos a cero
+        BigDecimal otros = totalGlobal.subtract(efectivo).subtract(tarjeta);
+
+        // Ahora pasamos cada valor a su sitio correcto en el DTO
+        // Estructura: (Total, Efectivo, Tarjeta, Otros)
+        return new ResumenCajaDTO(
+                totalGlobal != null ? totalGlobal : BigDecimal.ZERO,
+                efectivo != null ? efectivo : BigDecimal.ZERO,
+                tarjeta != null ? tarjeta : BigDecimal.ZERO,
+                otros.compareTo(BigDecimal.ZERO) > 0 ? otros : BigDecimal.ZERO
+        );
     }
 
     @Transactional
@@ -63,13 +76,17 @@ public class CierreCajaService {
         CierreCaja caja = obtenerCajaAbierta(idUsuario);
         if (caja == null) throw new RuntimeException("No hay caja abierta.");
 
+        // 1. Obtenemos el resumen desglosado que acabamos de arreglar
         ResumenCajaDTO resumen = obtenerResumenActual(idUsuario);
 
         caja.setFechaCierre(LocalDateTime.now());
         caja.setTotalVentas(resumen.getTotalVentas());
         caja.setFondoFinal(dineroFisicoContado);
 
-        BigDecimal dineroEsperado = caja.getFondoInicial().add(resumen.getTotalVentas());
+        // 2. CÁLCULO DEL DINERO QUE DEBERÍA HABER (Solo efectivo)
+        BigDecimal dineroEsperado = caja.getFondoInicial().add(resumen.getEfectivo());
+
+        // 3. CÁLCULO DEL DESCUADRE
         caja.setDescuadre(dineroFisicoContado.subtract(dineroEsperado));
 
         return cierreCajaRepository.save(caja);

@@ -1,7 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Delete, ImageIcon, ChevronLeft, ChevronRight, Trash2, Banknote, CreditCard, ArrowLeft, Printer, Monitor } from 'lucide-react';
+import {
+  Delete, ImageIcon, ChevronLeft, ChevronRight, Trash2,
+  Banknote, CreditCard, ArrowLeft, Printer, Monitor
+} from 'lucide-react';
+import { toast, Toaster } from 'react-hot-toast';
 
 export default function Caja() {
   const navigate = useNavigate();
@@ -24,32 +28,35 @@ export default function Caja() {
 
   // --- INTEGRACIÓN BACKEND ---
   useEffect(() => {
-    // Obtener nombre del usuario para la cabecera
     const auth = JSON.parse(localStorage.getItem('usuarioTendaSoft'));
     if (auth) setUsuarioNombre(auth.nombreUsuario || auth.nombreReal);
 
-    const fetchData = async () => {
-      try {
-        const [resProd, resCat] = await Promise.all([
-          axios.get('http://localhost:8080/api/productos'),
-          axios.get('http://localhost:8080/api/categorias')
-        ]);
-        setCategorias(resCat.data);
-
-        let productosCruzados = [];
-        resCat.data.forEach(cat => {
-          if (cat.productos) cat.productos.forEach(prod => productosCruzados.push({ ...prod, idCategoriaReal: cat.id }));
-        });
-
-        const productosFinales = resProd.data.map(p => {
-          const prodEncontrado = productosCruzados.find(pc => pc.codigoBarras === p.codigoBarras);
-          return { ...p, idCategoriaReal: prodEncontrado ? prodEncontrado.idCategoriaReal : 'sin-categoria' };
-        });
-        setProductos(productosFinales);
-      } catch (e) { console.error("Error cargando TPV", e); }
-    };
     fetchData();
   }, []);
+
+  const fetchData = async () => {
+    try {
+      const [resProd, resCat] = await Promise.all([
+        axios.get('http://localhost:8080/api/productos'),
+        axios.get('http://localhost:8080/api/categorias')
+      ]);
+      setCategorias(resCat.data);
+
+      let productosCruzados = [];
+      resCat.data.forEach(cat => {
+        if (cat.productos) cat.productos.forEach(prod => productosCruzados.push({ ...prod, idCategoriaReal: cat.id }));
+      });
+
+      const productosFinales = resProd.data.map(p => {
+        const prodEncontrado = productosCruzados.find(pc => pc.codigoBarras === p.codigoBarras);
+        return { ...p, idCategoriaReal: prodEncontrado ? prodEncontrado.idCategoriaReal : 'sin-categoria' };
+      });
+      setProductos(productosFinales);
+    } catch (e) {
+      console.error("Error cargando TPV", e);
+      toast.error("Error al cargar productos");
+    }
+  };
 
   // --- LÓGICA DE VENTA ---
   const agregarProducto = (prod) => {
@@ -69,7 +76,6 @@ export default function Caja() {
     if (scrollCategoriasRef.current) scrollCategoriasRef.current.scrollBy({ left: direccion === 'izq' ? -150 : 150, behavior: 'smooth' });
   };
 
-  // --- LÓGICA DEL TECLADO INTELIGENTE ---
   const handleNumpadClick = (n) => {
     if (pasoPago === 'efectivo') setDineroEntregado(prev => prev + n);
     else if (!pasoPago) setCodigoInput(prev => prev + n);
@@ -85,68 +91,122 @@ export default function Caja() {
       calcularCambio();
     } else if (!pasoPago) {
       const encontrado = productos.find(p => p.codigoBarras === codigoInput);
-      if (encontrado) agregarProducto(encontrado);
-      else alert("Producto no encontrado");
+      if (encontrado) {
+        agregarProducto(encontrado);
+      } else {
+        toast.error("Producto no encontrado", { duration: 2000 });
+      }
     }
   };
 
-  // --- LÓGICA DE COBRO ---
+  // --- VALIDACIÓN DE STOCK ---
+  const validarStockAntesDeCobrar = () => {
+    for (const item of ventaActual) {
+      const master = productos.find(p => p.codigoBarras === item.codigoBarras);
+      if (master && item.cantidad > master.unidades) {
+        toast.error(`Stock insuficiente: ${item.nombre}. Solo quedan ${master.unidades} unidades.`, {
+          icon: '⚠️',
+          duration: 4000
+        });
+        return false;
+      }
+    }
+    return true;
+  };
+
   const calcularCambio = () => {
     const entregado = parseFloat(dineroEntregado.replace(',', '.'));
     if (isNaN(entregado) || entregado < total) {
-      alert("La cantidad entregada es menor que el total o es inválida.");
+      toast.error("Cantidad insuficiente o inválida");
       return;
     }
     setCambio(entregado - total);
   };
 
+  // --- LÓGICA DE FINALIZACIÓN ACTUALIZADA ---
   const finalizarVenta = async (imprimirTicket) => {
-    if (ventaActual.length === 0) return;
+      if (ventaActual.length === 0) return;
 
-    try {
-      const auth = JSON.parse(localStorage.getItem('usuarioTendaSoft'));
+      const tId = toast.loading("Registrando venta...");
 
-      // 1. Construimos el JSON con la estructura que espera tu Backend
-      const payloadVenta = {
-        venta: {
-          usuario: {
-            idUsuario: parseInt(auth?.idUsuario || auth?.id)
+      try {
+        const auth = JSON.parse(localStorage.getItem('usuarioTendaSoft'));
+
+        const payloadVenta = {
+          venta: {
+            usuario: { idUsuario: parseInt(auth?.idUsuario || auth?.id) },
+            metodoPago: pasoPago.toUpperCase(),
+            total: parseFloat(total.toFixed(2)),
+            dineroEntregado: pasoPago === 'efectivo'
+              ? parseFloat(String(dineroEntregado).replace(',', '.'))
+              : parseFloat(total.toFixed(2)),
+            cambio: pasoPago === 'efectivo' ? parseFloat(cambio.toFixed(2)) : 0,
           },
-          metodoPago: pasoPago.toUpperCase(),
-          // Si tu backend guarda total/cambio dentro de 'venta', añádelos aquí:
-          total: parseFloat(total.toFixed(2)),
-          dineroEntregado: pasoPago === 'efectivo'
-            ? parseFloat(String(dineroEntregado).replace(',', '.'))
-            : parseFloat(total.toFixed(2)),
-          cambio: pasoPago === 'efectivo' ? parseFloat(cambio.toFixed(2)) : 0,
-        },
-        lineas: ventaActual.map(item => ({
-          producto: {
-            codigoBarras: String(item.codigoBarras)
-          },
-          cantidad: parseInt(item.cantidad)
-        }))
-      };
+          lineas: ventaActual.map(item => ({
+            producto: { codigoBarras: String(item.codigoBarras) },
+            cantidad: parseInt(item.cantidad)
+          }))
+        };
 
+        const response = await axios.post('http://localhost:8080/api/ventas', payloadVenta);
+        const ventaGuardada = response.data;
 
-      await axios.post('http://localhost:8080/api/ventas', payloadVenta);
+        // --- COMPROBACIÓN DE ESTADO VERIFACTU PARA EL TOAST ---
+        const estVF = ventaGuardada.estadoVerifactu;
+        if (estVF === 'FIRMADO' || estVF === 'FIRMADO_Y_PENDIENTE_ENVIO') {
+          toast.success("Venta completada correctamente", { id: tId });
+        } else {
+          toast.error("Venta completada con error en VeriFactu", { id: tId, duration: 5000 });
+        }
 
-      alert("¡Venta registrada con éxito!");
+        if (imprimirTicket) {
+          if (window.impresoraAPI) {
+            const configImpresora = JSON.parse(localStorage.getItem('impresoraTendaSoft'));
+            if (!configImpresora) {
+              toast.error("Sin impresora configurada", { id: tId });
+            } else {
+              const datosTicket = {
+                nombreEmpresa: "TendaSoft",
+                cif: "B12345678",
+                lineas: ventaActual.map(item => ({
+                  cantidad: item.cantidad,
+                  concepto: item.nombre,
+                  precio: (item.precio * item.cantidad).toFixed(2)
+                })),
+                total: total.toFixed(2),
+                urlVerifactu: "https://www2.agenciatributaria.gob.es/wlpl/inwinv/es/es.aeat.dit.adu.eaf.j.VerificaQrFacturaEAF"
+              };
 
-      // Limpieza de estados
-      setVentaActual([]);
-      setPasoPago(null);
-      setDineroEntregado('');
-      setCambio(null);
+              const resultado = await window.impresoraAPI.imprimirTicket(datosTicket, {
+                nombreImpresora: configImpresora.nombreSistema,
+                ancho: configImpresora.anchoPapel
+              });
 
-    } catch (error) {
-      console.error("Error al vender:", error.response?.data);
-      alert("Error: " + (error.response?.data?.message || "Revisa la consola"));
-    }
-  };
+              if (!resultado.success) {
+                toast.error("Error al imprimir ticket", { id: tId });
+              }
+            }
+          } else {
+            console.warn("Navegador: Impresión no disponible");
+          }
+        }
+
+        // Limpieza y refresco
+        setVentaActual([]);
+        setPasoPago(null);
+        setDineroEntregado('');
+        setCambio(null);
+        fetchData(); // Refrescamos productos para tener el stock real actualizado
+
+      } catch (error) {
+        console.error("Error al vender:", error);
+        toast.error("Error al registrar venta: " + (error?.response?.data || "Revisa la consola"), { id: tId });
+      }
+    };
 
   return (
     <div className="h-screen bg-[#F4F7F9] p-4 flex flex-col font-sans overflow-hidden antialiased">
+      <Toaster position="top-right" reverseOrder={false} />
 
       {/* === CABECERA === */}
       <div className="flex items-center justify-between mb-4 flex-shrink-0">
@@ -154,7 +214,6 @@ export default function Caja() {
           <button
             onClick={() => navigate('/dashboard')}
             className="mr-4 p-2 text-slate-500 hover:bg-slate-200 hover:text-slate-800 rounded-full transition-all"
-            title="Volver al inicio"
           >
             <ArrowLeft size={24} />
           </button>
@@ -171,9 +230,8 @@ export default function Caja() {
         </div>
       </div>
 
-      {/* === CONTENIDO TPV === */}
       <div className="flex flex-1 overflow-hidden">
-        {/* === SECCIÓN IZQUIERDA (60%) === */}
+        {/* === SECCIÓN IZQUIERDA (TICKET) === */}
         <div className="w-[60%] h-full pr-2">
           <div className="bg-white rounded-[16px] shadow-sm flex flex-col h-full overflow-hidden border-none relative">
             {!pasoPago ? (
@@ -188,27 +246,35 @@ export default function Caja() {
                   {ventaActual.length === 0 ? (
                     <div className="h-full flex items-center justify-center text-[#95A5A6] italic text-sm">Esperando productos...</div>
                   ) : (
-                    ventaActual.map(item => (
-                      <div key={item.codigoBarras} className="flex px-4 py-3 border-b border-[#F4F7F9] items-center animate-in fade-in slide-in-from-left-2">
-                        <div className="flex-[2.5]">
-                          <p className="font-bold text-[#2C3E50] text-sm">{item.nombre}</p>
-                          <p className="text-[10px] text-[#95A5A6]">{item.codigoBarras}</p>
+                    ventaActual.map(item => {
+                      const prodMaster = productos.find(p => p.codigoBarras === item.codigoBarras);
+                      const excedeStock = prodMaster && item.cantidad > prodMaster.unidades;
+
+                      return (
+                        <div key={item.codigoBarras} className={`flex px-4 py-3 border-b border-[#F4F7F9] items-center transition-colors ${excedeStock ? 'bg-red-50' : ''}`}>
+                          <div className="flex-[2.5]">
+                            <p className={`font-bold text-sm ${excedeStock ? 'text-red-600' : 'text-[#2C3E50]'}`}>{item.nombre}</p>
+                            {excedeStock && <p className="text-[9px] font-black text-red-500 uppercase italic">¡Solo hay {prodMaster.unidades} en stock!</p>}
+                            <p className="text-[10px] text-[#95A5A6]">{item.codigoBarras}</p>
+                          </div>
+                          <div className="flex-1 text-right font-bold text-[#2C3E50]">x{item.cantidad}</div>
+                          <div className="flex-[1.2] text-right font-black text-[#2C3E50]">{(item.precio * item.cantidad).toFixed(2)}€</div>
+                          <button onClick={() => eliminarProductoDeVenta(item.codigoBarras)} className="w-8 flex justify-end text-red-400 hover:text-red-600 ml-2">
+                            <Trash2 size={18} />
+                          </button>
                         </div>
-                        <div className="flex-1 text-right font-bold text-[#2C3E50]">x{item.cantidad}</div>
-                        <div className="flex-[1.2] text-right font-black text-[#2C3E50]">{(item.precio * item.cantidad).toFixed(2)}€</div>
-                        <button onClick={() => eliminarProductoDeVenta(item.codigoBarras)} className="w-8 flex justify-end text-red-400 hover:text-red-600 ml-2">
-                          <Trash2 size={18} />
-                        </button>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
                 <div className="h-[1px] bg-[#E0E6ED] w-full" />
                 <div className="h-20 flex items-center px-6 justify-between bg-white">
                   <button
-                    onClick={() => setPasoPago('seleccion')}
+                    onClick={() => {
+                      if (validarStockAntesDeCobrar()) setPasoPago('seleccion');
+                    }}
                     disabled={ventaActual.length === 0}
-                    className="bg-[#2ECC71] text-white font-bold px-10 h-[56px] rounded-[12px] text-lg shadow-sm hover:bg-[#27ae60] active:scale-95 transition-all disabled:bg-slate-200 disabled:text-slate-400"
+                    className="bg-[#2ECC71] text-white font-bold px-10 h-[56px] rounded-[12px] text-lg shadow-sm hover:bg-[#27ae60] active:scale-95 transition-all disabled:opacity-20"
                   >
                     COBRAR
                   </button>
@@ -227,8 +293,8 @@ export default function Caja() {
                 </button>
                 {pasoPago === 'seleccion' && (
                   <div className="flex flex-col items-center justify-center h-full px-12">
-                    <p className="text-[#1565C0] text-5xl font-black mb-10 text-center tracking-tight">TOTAL: {total.toFixed(2)} €</p>
-                    <p className="text-[#7F8C8D] text-xl font-bold mb-6 uppercase tracking-wider">Selecciona método de pago</p>
+                    <p className="text-[#1565C0] text-5xl font-black mb-10 text-center">TOTAL: {total.toFixed(2)} €</p>
+                    <p className="text-[#7F8C8D] text-xl font-bold mb-6 uppercase tracking-wider">Método de Pago</p>
                     <div className="flex w-full space-x-6">
                       <button onClick={() => setPasoPago('efectivo')} className="flex-1 bg-[#2ECC71] text-white rounded-[16px] h-[100px] flex items-center justify-center text-2xl font-bold hover:bg-[#27ae60] shadow-md">
                         <Banknote className="mr-3" size={36} /> Efectivo
@@ -270,12 +336,12 @@ export default function Caja() {
           </div>
         </div>
 
-        {/* === SECCIÓN DERECHA (40%) === */}
+        {/* === SECCIÓN DERECHA (NUMPAD/PRODUCTOS) === */}
         <div className="w-[40%] h-full flex flex-col">
           {!pasoPago && (
             <div className="animate-in fade-in">
               <input type="text" placeholder="Código de barras" value={codigoInput} onChange={(e) => setCodigoInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleEnterClick()} className="w-full h-[48px] bg-white border border-gray-200 rounded-[8px] text-center text-[16px] font-bold text-[#2C3E50] focus:outline-none mb-2 shadow-sm" />
-              <button onClick={() => setShowProducts(!showProducts)} className="w-full h-[44px] bg-[#2C3E50] text-white font-bold rounded-[8px] uppercase text-xs tracking-widest mb-3">
+              <button onClick={() => setShowProducts(!showProducts)} className="w-full h-[44px] bg-[#2C3E50] text-white font-bold rounded-[8px] uppercase text-xs tracking-widest mb-3 hover:bg-black transition-colors">
                 {showProducts ? "OCULTAR PRODUCTOS" : "VER PRODUCTOS"}
               </button>
             </div>
@@ -298,9 +364,8 @@ export default function Caja() {
                     <div
                       key={p.codigoBarras}
                       onClick={() => agregarProducto(p)}
-                      className="bg-white rounded-[12px] p-2 flex flex-col items-center text-center cursor-pointer active:scale-95 shadow-sm hover:shadow-md transition-all border border-slate-100"
+                      className="bg-white rounded-[12px] p-2 flex flex-col items-center text-center cursor-pointer active:scale-95 shadow-sm hover:shadow-md border border-slate-100"
                     >
-                      {/* CONTENEDOR DE LA IMAGEN */}
                       <div className="w-16 h-16 mb-2 rounded-lg overflow-hidden bg-slate-50 flex items-center justify-center shrink-0">
                         {p.urlImagen ? (
                           <img
@@ -308,23 +373,17 @@ export default function Caja() {
                             alt={p.nombre}
                             className="w-full h-full object-cover"
                             onError={(e) => {
-                              // Si la imagen no carga, mostramos el icono por defecto
-                              e.target.onerror = null;
-                              e.target.style.display = 'none'; // Ocultamos la etiqueta img rota
-                              e.target.nextSibling.style.display = 'block'; // Mostramos el ImageIcon
+                              e.target.style.display = 'none';
+                              e.target.nextSibling.style.display = 'block';
                             }}
                           />
                         ) : null}
-
-                        {/* Icono de respaldo (Se muestra si no hay urlImagen, o si la carga falla) */}
                         <ImageIcon
                           size={24}
                           className="text-slate-300"
                           style={{ display: p.urlImagen ? 'none' : 'block' }}
                         />
                       </div>
-
-                      {/* TEXTOS DEL PRODUCTO */}
                       <p className="text-[11px] font-bold text-[#2C3E50] truncate w-full leading-tight">{p.nombre}</p>
                       <p className="text-[14px] font-black text-[#1976D2] mt-1">{p.precio.toFixed(2)} €</p>
                     </div>
@@ -340,7 +399,11 @@ export default function Caja() {
               </div>
             )}
             {(!showProducts || pasoPago) && (
-              <button onClick={handleEnterClick} disabled={pasoPago === 'seleccion' || pasoPago === 'tarjeta'} className={`w-full h-[72px] font-black rounded-[12px] text-[20px] tracking-widest mt-2 shadow-md transition-all ${pasoPago === 'efectivo' ? 'bg-[#2ECC71] text-white' : 'bg-[#2C3E50] text-white'}`}>
+              <button
+                onClick={handleEnterClick}
+                disabled={pasoPago === 'seleccion' || pasoPago === 'tarjeta'}
+                className={`w-full h-[72px] font-black rounded-[12px] text-[20px] tracking-widest mt-2 shadow-md transition-all ${pasoPago === 'efectivo' ? 'bg-[#2ECC71] text-white' : 'bg-[#2C3E50] text-white active:bg-black'}`}
+              >
                 {pasoPago === 'efectivo' ? 'CALCULAR CAMBIO' : 'ENTER'}
               </button>
             )}

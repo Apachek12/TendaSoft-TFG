@@ -123,7 +123,7 @@ public class VentaService {
                 String xmlFirmado = firmaDigitalService.firmarXml(xmlFactura, rutaCert, passCert);
                 ventaGuardada.setEstadoVerifactu("FIRMADO_Y_PENDIENTE_ENVIO");
                 ventaRepository.save(ventaGuardada);
-                System.out.println("✅ XML Validado y Firmado con éxito.");
+                System.out.println("XML Validado y Firmado con éxito.");
             }
         } catch (Exception e) {
             // Si el error es de validación, relanzamos la excepción para anular la venta
@@ -134,6 +134,45 @@ public class VentaService {
         }
 
         return ventaGuardada;
+    }
+
+    @Transactional
+    public Venta reintentarTramiteVerifactu(Long idVenta) {
+        Venta venta = ventaRepository.findById(idVenta)
+                .orElseThrow(() -> new RuntimeException("Venta no encontrada"));
+
+        DatosNegocio negocio = datosNegocioRepository.findTopByOrderByIdAsc()
+                .orElseThrow(() -> new RuntimeException("Configure los datos de la empresa"));
+
+        // Recuperamos las líneas (necesarias para generar el XML)
+        List<LineaVenta> lineas = venta.getLineas();
+
+        try {
+            // 1. Generar y Validar XML
+            String xmlFactura = xmlService.generarXmlAltaFactura(venta, lineas, negocio);
+            boolean esValido = xmlService.validarXmlContraEsquema(xmlFactura);
+
+            if (!esValido) {
+                venta.setEstadoVerifactu("ERROR_XML");
+                return ventaRepository.save(venta);
+            }
+
+            // 2. Firmar
+            String rutaCert = negocio.getRutaCertificado();
+            String passCert = "123456"; // Idealmente esto vendría de configuración o vault
+
+            if (rutaCert != null && !rutaCert.isEmpty()) {
+                String xmlFirmado = firmaDigitalService.firmarXml(xmlFactura, rutaCert, passCert);
+                // Si la firma es correcta, lo marcamos como FIRMADO
+                venta.setEstadoVerifactu("FIRMADO");
+                System.out.println("Reintento: XML Firmado con éxito para factura: " + venta.getNumeroFactura());
+            }
+        } catch (Exception e) {
+            venta.setEstadoVerifactu("ERROR_FIRMA");
+            System.err.println("Error en reintento VeriFactu: " + e.getMessage());
+        }
+
+        return ventaRepository.save(venta);
     }
 
     private String generarSiguienteNumeroFactura() {

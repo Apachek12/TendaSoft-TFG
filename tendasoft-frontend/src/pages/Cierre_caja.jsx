@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Lock, Unlock, AlertCircle, CheckCircle2, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { toast, Toaster } from 'react-hot-toast';
 
 export default function CierreCaja() {
   const navigate = useNavigate();
@@ -31,15 +32,12 @@ export default function CierreCaja() {
 
         const userId = auth.idUsuario || auth.id;
 
-        // 1. Obtenemos el estado de la caja
         const resEstado = await axios.get(`http://localhost:8080/api/caja/estado/${userId}`);
 
-        if (resEstado.data && resEstado.data.id) { // Si existe una caja abierta
+        if (resEstado.data && resEstado.data.id) {
           setEstaAbierta(true);
-
           setFondoInicial(resEstado.data.fondoInicial);
 
-          // 2. Cargamos el resumen de ventas
           const resResumen = await axios.get(`http://localhost:8080/api/caja/resumen/${userId}`);
           setResumen({
             totalVentas: resResumen.data.totalVentas || 0,
@@ -55,24 +53,20 @@ export default function CierreCaja() {
     cargarDatosCaja();
   }, []);
 
-  // --- APERTURA DE CAJA (Estructura Postman) ---
+  // --- APERTURA DE CAJA ---
   const handleAbrirCaja = async () => {
     try {
       const auth = JSON.parse(localStorage.getItem('usuarioTendaSoft'));
-
-      // Estructura JSON exacta a tu petición de Postman
       const peticion = {
         fondoInicial: parseFloat(fondoInicial),
-        usuario: {
-          idUsuario: auth.idUsuario
-        }
+        usuario: { idUsuario: auth.idUsuario }
       };
 
       await axios.post('http://localhost:8080/api/caja/abrir', peticion);
       setEstaAbierta(true);
-      alert("Caja abierta correctamente");
+      toast.success("Caja abierta correctamente");
     } catch (error) {
-      alert("Error: " + (error.response?.data?.message || "No se pudo abrir la caja"));
+      toast.error("No se pudo abrir la caja");
     }
   };
 
@@ -86,28 +80,26 @@ export default function CierreCaja() {
       };
 
       const res = await axios.post('http://localhost:8080/api/caja/cerrar', peticion);
-      alert(`Caja cerrada correctamente.\nDescuadre: ${res.data.descuadre} €`);
+      toast.success(`Caja cerrada correctamente.\nDescuadre: ${res.data.descuadre} €`);
 
-      // Reiniciamos la pantalla
       setEstaAbierta(false);
       setFondoInicial('');
       setEfectivoContado('');
       setNotas('');
       setResumen({ totalVentas: 0, efectivo: 0, tarjeta: 0, otros: 0 });
     } catch (error) {
-      alert("Error al cerrar: " + (error.response?.data?.message || "Error desconocido"));
+      toast.error("Error al cerrar: " + (error.response?.data?.message || "Error desconocido"));
     }
   };
 
   return (
-    // Pantalla completa bloqueada (h-screen, sin scroll general)
     <div className="h-screen w-screen overflow-hidden bg-[#F4F7F9] p-6 flex flex-col font-sans">
+      {/* Componente necesario para que los avisos de toast se muestren */}
+      <Toaster position="top-right" />
 
-      {/* Cabecera superior con botón de volver */}
+      {/* === CABECERA === */}
       <div className="flex items-center justify-between mb-8 flex-shrink-0">
-        {/* IZQUIERDA: Botón de navegación + Título e Icono */}
         <div className="flex items-center">
-          {/* Botón Volver circular y sutil */}
           <button
             onClick={() => navigate('/dashboard')}
             className="mr-4 p-2 text-slate-500 hover:bg-slate-200 hover:text-slate-800 rounded-full transition-all"
@@ -116,11 +108,8 @@ export default function CierreCaja() {
             <ArrowLeft size={24} />
           </button>
 
-          {/* Divisor vertical y bloque de contenido */}
           <div className="flex items-center text-[#2C3E50] border-l pl-4 border-slate-200">
-            {/* Candado alineado con el texto */}
             <Lock className="mr-4 text-[#2C3E50]" size={32} />
-
             <div>
               <h1 className="text-2xl font-bold tracking-tight leading-none">
                 Apertura y Cierre
@@ -133,10 +122,10 @@ export default function CierreCaja() {
         </div>
       </div>
 
-      {/* Contenedor Principal (Expande para llenar la pantalla) */}
+      {/* === CONTENEDOR PRINCIPAL === */}
       <div className="flex-1 flex gap-6 w-full max-w-7xl mx-auto">
 
-        {/* === COLUMNA IZQUIERDA (48%) === */}
+        {/* COLUMNA IZQUIERDA */}
         <div className="w-[48%] flex flex-col gap-6 h-full">
 
           {/* Tarjeta 1: Apertura */}
@@ -164,27 +153,26 @@ export default function CierreCaja() {
             </div>
           </div>
 
-          {/* Tarjeta 2: Resumen del Turno */}
+          {/* Tarjeta 2: Resumen del Turno (Diferenciado) */}
           <div className="bg-white rounded-[16px] shadow-sm p-8 flex-1 flex flex-col">
             <h2 className="text-[#34495E] text-xl font-bold mb-6">Resumen del turno</h2>
 
-            {/* Cambia esto en el resumen de ventas del ticket o de la tarjeta de resumen */}
+            <div className="space-y-4 flex-1">
+              <div className="flex justify-between items-center">
+                <span className="text-[#7F8C8D] font-medium italic">Ventas en efectivo:</span>
+                <span className="text-[#2C3E50] font-bold">{(resumen.efectivo || 0).toFixed(2)} €</span>
+              </div>
 
-            <span className="text-[#2C3E50] font-bold">
-              {(resumen.efectivo || 0).toFixed(2)} €
-            </span>
+              <div className="flex justify-between items-center">
+                <span className="text-[#7F8C8D] font-medium italic">Ventas con tarjeta:</span>
+                <span className="text-[#2C3E50] font-bold">{(resumen.tarjeta || 0).toFixed(2)} €</span>
+              </div>
 
-            <span className="text-[#2C3E50] font-bold">
-              {(resumen.tarjeta || 0).toFixed(2)} €
-            </span>
-
-            <span className="text-[#2C3E50] font-bold">
-              {(resumen.otros || 0).toFixed(2)} €
-            </span>
-
-            <span className="text-[#1976D2] text-[22px] font-black">
-              {(resumen.totalVentas || 0).toFixed(2)} €
-            </span>
+              <div className="flex justify-between items-center">
+                <span className="text-[#7F8C8D] font-medium italic">Otros métodos:</span>
+                <span className="text-[#2C3E50] font-bold">{(resumen.otros || 0).toFixed(2)} €</span>
+              </div>
+            </div>
 
             <div className="h-[2px] bg-[#E0E6ED] w-full my-6" />
 
@@ -196,8 +184,7 @@ export default function CierreCaja() {
 
         </div>
 
-
-        {/* === COLUMNA DERECHA (52%) === */}
+        {/* COLUMNA DERECHA */}
         <div className="flex-1 flex flex-col gap-6 h-full">
 
           {/* Tarjeta 3: Cierre */}
@@ -232,7 +219,7 @@ export default function CierreCaja() {
             </button>
           </div>
 
-          {/* Tarjeta 4: Estado (Fija abajo) */}
+          {/* Tarjeta 4: Estado */}
           <div className="bg-[#F8F9FA] rounded-[16px] border-2 border-[#E0E6ED] p-6 flex items-center flex-shrink-0 h-[100px]">
             {estaAbierta ? (
               <>
@@ -246,7 +233,6 @@ export default function CierreCaja() {
               </>
             )}
           </div>
-
         </div>
 
       </div>

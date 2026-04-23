@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  X, Printer, CheckCircle2, Loader2, AlertCircle, ChevronRight, Settings2, Receipt, Search
+  X, Printer, CheckCircle2, Loader2, AlertCircle, ChevronRight, Settings2, Receipt, Search, Check
 } from 'lucide-react';
 
 export default function ModalAñadirImpresora({ isOpen, onClose }) {
@@ -15,7 +15,19 @@ export default function ModalAñadirImpresora({ isOpen, onClose }) {
     anchoPapel: '80mm',
   });
 
-  // --- LLAMADA A ELECTRON A TRAVÉS DEL PUENTE ---
+  // --- 1. CARGA INICIAL DESDE LOCALSTORAGE ---
+  useEffect(() => {
+    if (isOpen) {
+      const guardado = localStorage.getItem('impresoraTendaSoft');
+      if (guardado) {
+        setDatosImpresora(JSON.parse(guardado));
+        // Si ya hay algo guardado, podemos saltar directamente al paso de configurar
+        setPaso('configurar');
+      }
+    }
+  }, [isOpen]);
+
+  // --- 2. LLAMADA A ELECTRON A TRAVÉS DEL PUENTE ---
   const iniciarBusqueda = async () => {
     setPaso('buscando');
     setError('');
@@ -33,11 +45,15 @@ export default function ModalAñadirImpresora({ isOpen, onClose }) {
       }
 
       setListaImpresoras(encontradas);
-      setDatosImpresora({
-        ...datosImpresora,
-        nombreSistema: encontradas[0].nombre, // Seleccionamos la primera por defecto
-        nombreMostrar: encontradas[0].nombre
-      });
+
+      // Seteamos el estado inicial con la primera impresora encontrada
+      // (Respetando el ancho de papel si ya había uno configurado)
+      setDatosImpresora(prev => ({
+        ...prev,
+        nombreSistema: prev.nombreSistema || encontradas[0].nombre,
+        nombreMostrar: prev.nombreMostrar || encontradas[0].nombre,
+        anchoPapel: prev.anchoPapel || '80mm'
+      }));
 
       setPaso('configurar');
     } catch (err) {
@@ -46,15 +62,24 @@ export default function ModalAñadirImpresora({ isOpen, onClose }) {
     }
   };
 
+  // --- 3. GUARDADO PERSISTENTE ---
   const handleGuardar = () => {
     setCargando(true);
-    // Aquí guardarías esto en tu BD o localStorage
-    console.log("Guardando impresora:", datosImpresora);
 
-    setTimeout(() => {
+    try {
+      // Guardamos el objeto completo en LocalStorage
+      localStorage.setItem('impresoraTendaSoft', JSON.stringify(datosImpresora));
+      console.log("✅ Configuración guardada en LocalStorage:", datosImpresora);
+
+      setTimeout(() => {
+        setCargando(false);
+        setPaso('exito');
+      }, 600);
+    } catch (err) {
+      console.error("Error al guardar en LocalStorage", err);
+      setError("No se pudo guardar la configuración en el dispositivo.");
       setCargando(false);
-      setPaso('exito');
-    }, 600);
+    }
   };
 
   const resetModal = () => {
@@ -132,10 +157,20 @@ export default function ModalAñadirImpresora({ isOpen, onClose }) {
                   onChange={(e) => setDatosImpresora({...datosImpresora, nombreSistema: e.target.value, nombreMostrar: e.target.value})}
                   className="w-full h-14 px-5 bg-[#F8F9FA] rounded-2xl border-2 border-transparent focus:border-[#00796B] outline-none font-bold text-[#2C3E50]"
                 >
-                  {listaImpresoras.map((imp, idx) => (
-                    <option key={idx} value={imp.nombre}>{imp.descripcion}</option>
-                  ))}
+                  {/* Si hay impresoras cargadas en el momento, las mostramos. Si venimos del LocalStorage directamente, mostramos la guardada como opción por defecto */}
+                  {listaImpresoras.length > 0 ? (
+                    listaImpresoras.map((imp, idx) => (
+                      <option key={idx} value={imp.nombre}>{imp.descripcion}</option>
+                    ))
+                  ) : (
+                    <option value={datosImpresora.nombreSistema}>{datosImpresora.nombreMostrar}</option>
+                  )}
                 </select>
+                {listaImpresoras.length === 0 && (
+                   <button onClick={iniciarBusqueda} className="text-xs text-[#00796B] font-bold mt-2 ml-2 hover:underline">
+                     Volver a escanear dispositivos
+                   </button>
+                )}
               </div>
 
               <div className="space-y-1">
@@ -159,7 +194,7 @@ export default function ModalAñadirImpresora({ isOpen, onClose }) {
                   <button
                     onClick={() => setDatosImpresora({...datosImpresora, anchoPapel: '58mm'})}
                     className={`h-12 rounded-xl font-black text-sm border-2 transition-all ${
-                      datosImpresora.anchoPapel === '58mm' ? 'border-[#00796B] bg-[#E0F2F1] text-[#00796B]' : 'border-slate-100 text-slate-400'
+                      datosImpresora.anchoPapel === '58mm' ? 'border-[#00796B] bg-[#E0F2F1] text-[#00796B]' : 'border-slate-100 text-slate-400 hover:border-slate-200'
                     }`}
                   >
                     58mm (Pequeño)
@@ -167,7 +202,7 @@ export default function ModalAñadirImpresora({ isOpen, onClose }) {
                   <button
                     onClick={() => setDatosImpresora({...datosImpresora, anchoPapel: '80mm'})}
                     className={`h-12 rounded-xl font-black text-sm border-2 transition-all ${
-                      datosImpresora.anchoPapel === '80mm' ? 'border-[#00796B] bg-[#E0F2F1] text-[#00796B]' : 'border-slate-100 text-slate-400'
+                      datosImpresora.anchoPapel === '80mm' ? 'border-[#00796B] bg-[#E0F2F1] text-[#00796B]' : 'border-slate-100 text-slate-400 hover:border-slate-200'
                     }`}
                   >
                     80mm (Estándar)
@@ -178,16 +213,16 @@ export default function ModalAñadirImpresora({ isOpen, onClose }) {
               <div className="flex gap-3 pt-4">
                 <button
                   onClick={() => setPaso('inicio')}
-                  className="flex-1 h-14 font-black rounded-2xl text-slate-500 bg-slate-100 hover:bg-slate-200 uppercase text-xs tracking-widest"
+                  className="flex-1 h-14 font-black rounded-2xl text-slate-500 bg-slate-100 hover:bg-slate-200 transition-colors uppercase text-xs tracking-widest"
                 >
                   Atrás
                 </button>
                 <button
                   onClick={handleGuardar}
                   disabled={cargando}
-                  className="flex-[2] h-14 bg-[#00796B] text-white font-black rounded-2xl hover:bg-[#005d52] transition-all flex items-center justify-center shadow-lg uppercase text-xs tracking-widest"
+                  className="flex-[2] h-14 bg-[#00796B] text-white font-black rounded-2xl hover:bg-[#005d52] transition-all flex items-center justify-center gap-3 shadow-lg shadow-[#00796B]/20"
                 >
-                  {cargando ? <Loader2 className="animate-spin" /> : 'Guardar Configuración'}
+                  {cargando ? <Loader2 className="animate-spin" /> : <><Check size={20} /> GUARDAR CONFIGURACIÓN</>}
                 </button>
               </div>
             </div>

@@ -19,6 +19,13 @@ public interface VentaRepository extends JpaRepository<Venta, Long> {
             @Param("fechaApertura") LocalDateTime fechaApertura
     );
 
+    @Query("SELECT COALESCE(SUM(v.total), 0) FROM Venta v WHERE v.usuario.idUsuario = :usuarioId AND v.fecha >= :fechaApertura AND v.metodoPago = :metodo")
+    BigDecimal calcularTotalPorMetodo(
+            @Param("usuarioId") Integer usuarioId,
+            @Param("fechaApertura") LocalDateTime fechaApertura,
+            @Param("metodo") String metodo
+    );
+
     Optional<Venta> findFirstByOrderByIdDesc();
 
     Optional<Venta> findFirstByNumeroFacturaStartingWithOrderByIdDesc(String prefijo);
