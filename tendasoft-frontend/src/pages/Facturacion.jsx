@@ -16,7 +16,6 @@ export default function Facturacion() {
   const [resumen, setResumen] = useState(null);
   const [loading, setLoading] = useState(false);
   const [expandedId, setExpandedId] = useState(null);
-
   const [dia, setDia] = useState(new Date().getDate());
   const [mes, setMes] = useState(new Date().getMonth() + 1);
   const [año, setAño] = useState(2026);
@@ -30,17 +29,14 @@ export default function Facturacion() {
     }
   }, [navigate]);
 
-  // --- LÓGICA DE REINTENTO (FIRMA Y ENVÍO) ---
   const handleReintentarEnvio = async (idVenta) => {
     const tId = toast.loading("Procesando reintento VeriFactu...");
     try {
-      const res = await axios.post(`http://localhost:8080/api/ventas/reintentar/${idVenta}`);
-
-      // Tras el reintento exitoso, lo marcamos como ENVIADA (para que pase a Verde)
+      await axios.post(`http://localhost:8080/api/ventas/reintentar/${idVenta}`);
+      // Tras reintento exitoso, actualizamos el estado local a CORRECTO
       setTickets(prev => prev.map(t =>
-        t.idVenta === idVenta ? { ...t, estadoVerifactu: 'ENVIADA' } : t
+        t.idVenta === idVenta ? { ...t, estadoVerifactu: 'CORRECTO' } : t
       ));
-
       toast.success("Factura informada correctamente a la AEAT", { id: tId });
     } catch (e) {
       console.error("Error al reintentar:", e);
@@ -49,35 +45,95 @@ export default function Facturacion() {
   };
 
   const cargarReporte = async (tipo) => {
-      setLoading(true);
-      try {
-        const params = { año, mes: modo === 'año' ? null : mes, dia: modo === 'dia' ? dia : null };
-
-        if (tipo === 'resumen') {
-          const res = await axios.get('http://localhost:8080/api/ventas/estadisticas', { params });
-          const data = res.data;
-          setResumen({
-            total: data.totalFacturado || 0,
-            count: data.totalTickets || 0,
-            medio: data.ticketMedio || 0,
-            efectivo: data.ventasPorMetodoPago?.EFECTIVO || 0,
-            tarjeta: data.ventasPorMetodoPago?.TARJETA || 0,
-            otros: data.ventasPorMetodoPago?.OTROS || 0
-          });
-          setTickets([]);
-          toast.success("Resumen de ventas generado");
-        } else {
-          const res = await axios.get('http://localhost:8080/api/ventas/periodo', { params });
-          setTickets(res.data);
-          setResumen(null);
-          if (res.data.length === 0) toast.error("Sin registros en este periodo");
-        }
-      } catch (e) {
-        toast.error("Error al conectar con el servidor");
-      } finally {
-        setLoading(false);
+    setLoading(true);
+    try {
+      const params = { año, mes: modo === 'año' ? null : mes, dia: modo === 'dia' ? dia : null };
+      if (tipo === 'resumen') {
+        const res = await axios.get('http://localhost:8080/api/ventas/estadisticas', { params });
+        const data = res.data;
+        setResumen({
+          total: data.totalFacturado || 0,
+          count: data.totalTickets || 0,
+          medio: data.ticketMedio || 0,
+          efectivo: data.ventasPorMetodoPago?.EFECTIVO || 0,
+          tarjeta: data.ventasPorMetodoPago?.TARJETA || 0,
+          otros: data.ventasPorMetodoPago?.OTROS || 0
+        });
+        setTickets([]);
+        toast.success("Resumen de ventas generado");
+      } else {
+        const res = await axios.get('http://localhost:8080/api/ventas/periodo', { params });
+        setTickets(res.data);
+        setResumen(null);
+        if (res.data.length === 0) toast.error("Sin registros en este periodo");
       }
+    } catch (e) {
+      toast.error("Error al conectar con el servidor");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Clasifica el estado VeriFactu que viene del backend.
+   *
+   * Estados posibles desde VentaService:
+   *   CORRECTO                  → Aceptada por la AEAT (verde)
+   *   FIRMADO                   → Firmada localmente, envío pendiente (azul)
+   *   FIRMADO_Y_PENDIENTE_ENVIO → Firmada, no se pudo enviar (azul)
+   *   ERROR_AEAT                → La AEAT la rechazó (rojo)
+   *   ERROR_FIRMA               → Fallo al firmar (rojo)
+   *   ERROR_XML                 → XML inválido (rojo)
+   *   PROCESANDO                → En proceso (ámbar)
+   *   PENDIENTE_CALCULO         → Hash aún no calculado (ámbar)
+   *   cualquier otro            → Pendiente/desconocido (ámbar)
+   */
+  const clasificarEstado = (estadoRaw) => {
+    const est = (estadoRaw || '').toUpperCase().trim();
+
+    if (est === 'CORRECTO') {
+      return {
+        esCorrecta: true,
+        esFirmadaLocal: false,
+        esError: false,
+        etiqueta: 'AEAT Informada',
+        clases: 'bg-green-50 border-green-200 text-green-600',
+        icono: 'check'
+      };
+    }
+
+    if (est === 'FIRMADO' || est === 'FIRMADO_Y_PENDIENTE_ENVIO') {
+      return {
+        esCorrecta: false,
+        esFirmadaLocal: true,
+        esError: false,
+        etiqueta: 'Firmada Local',
+        clases: 'bg-blue-50 border-blue-200 text-blue-600',
+        icono: 'firmada'
+      };
+    }
+
+    if (est.startsWith('ERROR')) {
+      return {
+        esCorrecta: false,
+        esFirmadaLocal: false,
+        esError: true,
+        etiqueta: est === 'ERROR_AEAT' ? 'Error AEAT' : est === 'ERROR_FIRMA' ? 'Error Firma' : 'Error XML',
+        clases: 'bg-red-50 border-red-200 text-red-600',
+        icono: 'error'
+      };
+    }
+
+    // PROCESANDO, PENDIENTE_CALCULO, o cualquier otro
+    return {
+      esCorrecta: false,
+      esFirmadaLocal: false,
+      esError: false,
+      etiqueta: 'Pendiente',
+      clases: 'bg-amber-50 border-amber-200 text-amber-600',
+      icono: 'clock'
     };
+  };
 
   if (!autorizado) return null;
 
@@ -102,6 +158,7 @@ export default function Facturacion() {
       </div>
 
       <div className="flex-1 flex gap-6 overflow-hidden">
+
         {/* FILTROS (45%) */}
         <div className="w-[45%] h-full">
           <div className="bg-white rounded-[20px] shadow-sm p-8 flex flex-col h-full border-none">
@@ -122,7 +179,9 @@ export default function Facturacion() {
               )}
               {modo !== 'año' && (
                 <select value={mes} onChange={(e) => setMes(e.target.value)} className="flex-1 h-14 bg-[#F8F9FA] border-2 border-transparent focus:border-[#00796B] rounded-xl px-4 outline-none font-black text-sm transition-all">
-                  {['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'].map((m, i) => <option key={i+1} value={i+1}>{m}</option>)}
+                  {['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'].map((m, i) => (
+                    <option key={i+1} value={i+1}>{m}</option>
+                  ))}
                 </select>
               )}
               <select value={año} onChange={(e) => setAño(e.target.value)} className="flex-1 h-14 bg-[#F8F9FA] border-2 border-transparent focus:border-[#00796B] rounded-xl px-4 outline-none font-black text-sm transition-all">
@@ -140,103 +199,79 @@ export default function Facturacion() {
           </div>
         </div>
 
-        {/* COLUMNA DERECHA (55%): Lista de Facturas */}
+        {/* COLUMNA DERECHA (55%) */}
         <div className="w-[55%] h-full overflow-hidden flex flex-col">
           <div className="flex-1 overflow-y-auto pr-2 pb-6 scrollbar-hide">
             {tickets.length > 0 ? (
               <div className="space-y-4">
-                {tickets.map((ticket) => (
-                  <div key={ticket.idVenta} className="bg-white rounded-[24px] shadow-sm border-2 border-transparent hover:border-[#00796B]/20 overflow-hidden transition-all">
-                    <div onClick={() => setExpandedId(expandedId === ticket.idVenta ? null : ticket.idVenta)} className="p-5 flex items-center justify-between cursor-pointer">
-                      <div className="flex items-center space-x-5">
-                        <div className="w-14 h-14 bg-[#E0F2F1] rounded-2xl flex items-center justify-center">
-                          <FileText className="text-[#00695C]" size={28} />
+                {tickets.map((ticket) => {
+                  const estado = clasificarEstado(ticket.estadoVerifactu);
+                  return (
+                    <div key={ticket.idVenta} className="bg-white rounded-[24px] shadow-sm border-2 border-transparent hover:border-[#00796B]/20 overflow-hidden transition-all">
+                      <div onClick={() => setExpandedId(expandedId === ticket.idVenta ? null : ticket.idVenta)} className="p-5 flex items-center justify-between cursor-pointer">
+                        <div className="flex items-center space-x-5">
+                          <div className="w-14 h-14 bg-[#E0F2F1] rounded-2xl flex items-center justify-center">
+                            <FileText className="text-[#00695C]" size={28} />
+                          </div>
+                          <div>
+                            <p className="font-black text-[#2C3E50] text-lg">{ticket.numeroFactura}</p>
+                            <p className="text-[12px] text-[#95A5A6] font-black">{new Date(ticket.fecha).toLocaleDateString()}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-black text-[#2C3E50] text-lg">{ticket.numeroFactura}</p>
-                          <p className="text-[12px] text-[#95A5A6] font-black">{new Date(ticket.fecha).toLocaleDateString()}</p>
-                        </div>
-                      </div>
+                        <div className="flex items-center space-x-4">
+                          <p className="font-black text-[#2C3E50] text-xl">{(ticket.total || 0).toFixed(2)} €</p>
 
-                      <div className="flex items-center space-x-4">
-                        <p className="font-black text-[#2C3E50] text-xl">{(ticket.total || 0).toFixed(2)} €</p>
-
-                        {/* --- LÓGICA DE VERIFACTU CON DIFERENCIACIÓN --- */}
-                        {(() => {
-                          const est = ticket.estadoVerifactu ? ticket.estadoVerifactu.toUpperCase().trim() : 'SIN_DATOS';
-
-                          // 1. Estados Finales (AEAT Informada)
-                          const isEnviadaAEAT = est === 'ENVIADA' || est === 'CORRECTO';
-                          // 2. Estados Intermedios (Firma local pero no enviada)
-                          const isFirmadaLocal = est === 'FIRMADO' || est === 'FIRMADO_Y_PENDIENTE_ENVIO';
-                          // 3. Fallos
-                          const isError = est.includes('ERROR');
-                          // 4. Pendientes iniciales
-                          const isPendiente = est.includes('PENDIENTE') || est === 'SIN_DATOS';
-
-                          return (
-                            <div className="flex items-center space-x-2">
-                              <div className={`flex items-center space-x-2 px-3 py-1.5 rounded-full border shadow-sm transition-all ${
-                                isEnviadaAEAT ? 'bg-green-50 border-green-200 text-green-600' :
-                                isFirmadaLocal ? 'bg-blue-50 border-blue-200 text-blue-600' :
-                                isError ? 'bg-red-50 border-red-200 text-red-600' :
-                                'bg-amber-50 border-amber-200 text-amber-600'
-                              }`}>
-                                {isEnviadaAEAT && <CheckCircle2 size={14} />}
-                                {isFirmadaLocal && <FileText size={14} className="animate-pulse" />}
-                                {isError && <XCircle size={14} />}
-                                {isPendiente && <Clock size={14} />}
-
-                                <span className="text-[10px] font-black uppercase tracking-widest">
-                                  {isEnviadaAEAT ? 'AEAT Informada' :
-                                   isFirmadaLocal ? 'Firmada Local' :
-                                   isError ? 'Error Firma' : 'Pendiente'}
-                                </span>
-                              </div>
-
-                              {/* BOTÓN REINTENTO: Solo si no ha llegado a la AEAT */}
-                              {!isEnviadaAEAT && (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleReintentarEnvio(ticket.idVenta);
-                                  }}
-                                  className="p-2 bg-slate-50 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-full border border-slate-200 transition-all shadow-sm group"
-                                  title={isFirmadaLocal ? "Enviar a la AEAT ahora" : "Reintentar Firma y Envío"}
-                                >
-                                  <RotateCcw size={14} className="group-hover:rotate-180 transition-transform duration-500" />
-                                </button>
-                              )}
+                          {/* Badge de estado VeriFactu */}
+                          <div className="flex items-center space-x-2">
+                            <div className={`flex items-center space-x-2 px-3 py-1.5 rounded-full border shadow-sm transition-all ${estado.clases}`}>
+                              {estado.icono === 'check'    && <CheckCircle2 size={14} />}
+                              {estado.icono === 'firmada'  && <FileText size={14} className="animate-pulse" />}
+                              {estado.icono === 'error'    && <XCircle size={14} />}
+                              {estado.icono === 'clock'    && <Clock size={14} />}
+                              <span className="text-[10px] font-black uppercase tracking-widest">
+                                {estado.etiqueta}
+                              </span>
                             </div>
-                          );
-                        })()}
 
-                        {expandedId === ticket.idVenta ? <ChevronUp className="text-[#95A5A6]" /> : <ChevronDown className="text-[#95A5A6]" />}
+                            {/* Botón reintento: solo si no está confirmada por la AEAT */}
+                            {!estado.esCorrecta && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleReintentarEnvio(ticket.idVenta); }}
+                                className="p-2 bg-slate-50 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-full border border-slate-200 transition-all shadow-sm group"
+                                title={estado.esFirmadaLocal ? "Enviar a la AEAT ahora" : "Reintentar Firma y Envío"}
+                              >
+                                <RotateCcw size={14} className="group-hover:rotate-180 transition-transform duration-500" />
+                              </button>
+                            )}
+                          </div>
+
+                          {expandedId === ticket.idVenta ? <ChevronUp className="text-[#95A5A6]" /> : <ChevronDown className="text-[#95A5A6]" />}
+                        </div>
                       </div>
+
+                      {expandedId === ticket.idVenta && (
+                        <div className="px-24 pb-8 pt-4 bg-slate-50/50 animate-in slide-in-from-top-4 duration-300">
+                          <div className="grid grid-cols-3 text-[11px] font-black text-[#95A5A6] border-b border-gray-200 pb-2 mb-3 uppercase tracking-widest">
+                            <div>Concepto</div><div className="text-center">Cant.</div><div className="text-right">Subtotal</div>
+                          </div>
+                          <div className="space-y-2">
+                            {ticket.lineas?.map((l, idx) => (
+                              <div key={idx} className="grid grid-cols-3 text-[14px] font-bold text-[#2C3E50]">
+                                <div>{l.nombreProducto}</div>
+                                <div className="text-center text-[#00796B]">x{l.cantidad}</div>
+                                <div className="text-right">{(l.precioUnitario * l.cantidad).toFixed(2)} €</div>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="flex justify-between items-center p-4 bg-white rounded-xl mt-4 border border-gray-100 shadow-sm">
+                            <p className="text-[12px] font-bold text-slate-500 uppercase">Método: <span className="text-[#00796B] font-black">{ticket.metodoPago}</span></p>
+                            <p className="text-[12px] font-bold text-slate-500 uppercase">Cajero: <span className="text-[#2C3E50] font-black">{ticket.nombreCajero}</span></p>
+                          </div>
+                        </div>
+                      )}
                     </div>
-
-                    {expandedId === ticket.idVenta && (
-                      <div className="px-24 pb-8 pt-4 bg-slate-50/50 animate-in slide-in-from-top-4 duration-300">
-                         <div className="grid grid-cols-3 text-[11px] font-black text-[#95A5A6] border-b border-gray-200 pb-2 mb-3 uppercase tracking-widest">
-                           <div>Concepto</div><div className="text-center">Cant.</div><div className="text-right">Subtotal</div>
-                         </div>
-                         <div className="space-y-2">
-                           {ticket.lineas?.map((l, idx) => (
-                             <div key={idx} className="grid grid-cols-3 text-[14px] font-bold text-[#2C3E50]">
-                               <div>{l.nombreProducto}</div>
-                               <div className="text-center text-[#00796B]">x{l.cantidad}</div>
-                               <div className="text-right">{(l.precioUnitario * l.cantidad).toFixed(2)} €</div>
-                             </div>
-                           ))}
-                         </div>
-                         <div className="flex justify-between items-center p-4 bg-white rounded-xl mt-4 border border-gray-100 shadow-sm">
-                           <p className="text-[12px] font-bold text-slate-500 uppercase">Método: <span className="text-[#00796B] font-black">{ticket.metodoPago}</span></p>
-                           <p className="text-[12px] font-bold text-slate-500 uppercase">Cajero: <span className="text-[#2C3E50] font-black">{ticket.nombreCajero}</span></p>
-                         </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : resumen ? (
               <div className="bg-white rounded-[24px] shadow-sm p-10 animate-in zoom-in-95 duration-300">
@@ -247,14 +282,14 @@ export default function Facturacion() {
                   <p className="text-[#00796B] text-6xl font-black">{(resumen.total || 0).toFixed(2)} €</p>
                 </div>
                 <div className="grid grid-cols-2 gap-10">
-                   <div className="border-l-4 border-[#2ECC71] pl-6">
-                      <p className="text-[#7F8C8D] text-[11px] font-black uppercase mb-1">Efectivo</p>
-                      <p className="text-[#2C3E50] text-2xl font-black">{(resumen.efectivo || 0).toFixed(2)} €</p>
-                   </div>
-                   <div className="border-l-4 border-[#1976D2] pl-6">
-                      <p className="text-[#7F8C8D] text-[11px] font-black uppercase mb-1">Tarjeta</p>
-                      <p className="text-[#2C3E50] text-2xl font-black">{(resumen.tarjeta || 0).toFixed(2)} €</p>
-                   </div>
+                  <div className="border-l-4 border-[#2ECC71] pl-6">
+                    <p className="text-[#7F8C8D] text-[11px] font-black uppercase mb-1">Efectivo</p>
+                    <p className="text-[#2C3E50] text-2xl font-black">{(resumen.efectivo || 0).toFixed(2)} €</p>
+                  </div>
+                  <div className="border-l-4 border-[#1976D2] pl-6">
+                    <p className="text-[#7F8C8D] text-[11px] font-black uppercase mb-1">Tarjeta</p>
+                    <p className="text-[#2C3E50] text-2xl font-black">{(resumen.tarjeta || 0).toFixed(2)} €</p>
+                  </div>
                 </div>
               </div>
             ) : (

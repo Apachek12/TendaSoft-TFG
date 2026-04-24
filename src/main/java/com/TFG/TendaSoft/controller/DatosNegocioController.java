@@ -29,13 +29,16 @@ public class DatosNegocioController {
             @RequestParam("direccion") String direccion,
             @RequestParam(value = "mensajeTicket", required = false) String mensajeTicket,
             @RequestParam("verifactuActivado") Boolean verifactuActivado,
+            // AÑADIMOS ESTE CAMPO:
+            @RequestParam(value = "certificadoPassword", required = false) String certificadoPassword,
             @RequestParam(value = "logo", required = false) MultipartFile logo,
-            @RequestParam(value = "certificado", required = false) MultipartFile certificado) { // <-- AÑADIDO EL CERTIFICADO
+            @RequestParam(value = "certificado", required = false) MultipartFile certificado) {
 
         try {
-            // Actualizamos la llamada al servicio para enviar también el certificado.
+            // Pasamos también la contraseña al servicio
             DatosNegocio guardado = datosNegocioService.guardarConfiguracion(
-                    nombreEmpresa, cif, direccion, mensajeTicket, verifactuActivado, logo, certificado);
+                    nombreEmpresa, cif, direccion, mensajeTicket, verifactuActivado,
+                    certificadoPassword, logo, certificado);
 
             return ResponseEntity.ok(guardado);
         } catch (Exception e) {
@@ -43,4 +46,6 @@ public class DatosNegocioController {
                     .body("Error al guardar la configuración: " + e.getMessage());
         }
     }
+
+
 }

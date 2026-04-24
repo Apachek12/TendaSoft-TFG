@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 
 @Service
 @RequiredArgsConstructor
@@ -45,35 +46,39 @@ public class DatosNegocioService {
     }
 
     @Transactional
-    public DatosNegocio guardarConfiguracion(String nombreEmpresa, String cif,
-                                             String direccion, String mensajeTicket,
-                                             Boolean verifactuActivado,
-                                             MultipartFile logo,
-                                             MultipartFile certificado) { // <-- Recibimos ambos archivos
+    public DatosNegocio guardarConfiguracion(String nombre, String cif, String dir, String msg,
+                                             Boolean vf, String pass, MultipartFile logo,
+                                             MultipartFile cert) throws IOException {
 
-        // 1. Recuperamos la configuración actual o creamos una nueva
-        DatosNegocio config = obtenerConfiguracion();
-        config.setId(1); // Forzamos que siempre sea la fila 1
-        config.setNombreEmpresa(nombreEmpresa);
-        config.setCif(cif);
-        config.setDireccion(direccion);
-        config.setMensajeTicket(mensajeTicket);
-        config.setVerifactuActivado(verifactuActivado);
+        DatosNegocio n = datosNegocioRepository.findTopByOrderByIdAsc().orElse(new DatosNegocio());
 
-        // 2. Si viene un logo nuevo, lo procesamos usando el método auxiliar
+        n.setNombreEmpresa(nombre);
+        n.setCif(cif);
+        n.setDireccion(dir);
+        n.setMensajeTicket(msg);
+        n.setVerifactuActivado(vf);
+        if (pass != null && !pass.isEmpty()) n.setCertificadoPassword(pass);
+
+        // Directorios de almacenamiento
+        String uploadDir = "uploads/";
+        String certDir = "config/certs/";
+        new File(uploadDir).mkdirs();
+        new File(certDir).mkdirs();
+
         if (logo != null && !logo.isEmpty()) {
-            String rutaLogo = guardarArchivoFisico(logo, "logo_");
-            config.setRutaLogo(rutaLogo);
+            String fileName = "logo_" + System.currentTimeMillis() + "_" + logo.getOriginalFilename();
+            Files.copy(logo.getInputStream(), Paths.get(uploadDir + fileName), StandardCopyOption.REPLACE_EXISTING);
+            n.setRutaLogo(fileName);
         }
 
-        // 3. Si viene un certificado nuevo, lo procesamos
-        if (certificado != null && !certificado.isEmpty()) {
-            String rutaCert = guardarArchivoFisico(certificado, "cert_");
-            config.setRutaCertificado(rutaCert);
+        if (cert != null && !cert.isEmpty()) {
+            String certName = "cert_" + System.currentTimeMillis() + ".p12";
+            Path path = Paths.get(certDir + certName);
+            Files.copy(cert.getInputStream(), path, StandardCopyOption.REPLACE_EXISTING);
+            n.setRutaCertificado(path.toAbsolutePath().toString());
         }
 
-        // 4. Guardamos en Base de Datos
-        return datosNegocioRepository.save(config);
+        return datosNegocioRepository.save(n);
     }
 
     // --- MÉTODO AUXILIAR PARA NO REPETIR CÓDIGO ---

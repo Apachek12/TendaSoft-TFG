@@ -53,6 +53,23 @@ public class Venta {
     @Column(name = "estado_verifactu", length = 50, nullable = false)
     private String estadoVerifactu;
 
+    // --- Campos para el encadenamiento VeriFactu ---
+    // Número de factura del registro anterior en la cadena
+    @Column(name = "numero_factura_anterior", length = 50)
+    private String numeroFacturaAnterior;
+
+    // Fecha de expedición de la factura anterior
+    @Column(name = "fecha_anterior")
+    private LocalDateTime fechaAnterior;
+
+    // NIF del emisor de la factura anterior (normalmente el mismo negocio)
+    @Column(name = "cif_emisor_anterior", length = 15)
+    private String cifEmisorAnterior;
+
+    // XML firmado guardado para poder reenviar sin regenerar ni romper el hash
+    @Column(name = "xml_firmado", columnDefinition = "TEXT")
+    private String xmlFirmado;
+
     @ManyToOne
     @JoinColumn(name = "Usuariosid_usuario", nullable = false)
     private Usuario usuario;

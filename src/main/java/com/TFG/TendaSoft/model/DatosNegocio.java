@@ -1,37 +1,37 @@
 package com.TFG.TendaSoft.model;
 
+import com.TFG.TendaSoft.utils.Encriptado;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
 @Entity
 @Table(name = "datos_negocio")
-@Getter
-@Setter
+@Getter @Setter
 public class DatosNegocio {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
-    @Column(name = "nombre_empresa", length = 100, nullable = false)
+    @Column(nullable = false)
     private String nombreEmpresa;
 
     @Column(length = 20, unique = true, nullable = false)
     private String cif;
 
-    @Column(length = 255, nullable = false)
+    @Column(nullable = false)
     private String direccion;
 
-    @Column(name = "mensaje_ticket", length = 255)
     private String mensajeTicket;
-
-    @Column(name = "ruta_logo", length = 255)
     private String rutaLogo;
+    private String rutaCertificado;
 
-    @Column(name = "verifactu_activado", nullable = false)
+    @Column(nullable = false)
     private Boolean verifactuActivado;
 
-    @Column(name = "ruta_certificado", length = 255)
-    private String rutaCertificado;
+    // La magia del cifrado ocurre aquí
+    @Convert(converter = Encriptado.class)
+    @Column(name = "certificado_password", length = 500)
+    private String certificadoPassword;
 }

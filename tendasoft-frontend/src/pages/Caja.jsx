@@ -9,24 +9,29 @@ import { toast, Toaster } from 'react-hot-toast';
 
 export default function Caja() {
   const navigate = useNavigate();
-  // --- ESTADOS LÓGICOS TPV ---
-  const [showProducts, setShowProducts] = useState(false);
-  const [ventaActual, setVentaActual] = useState([]);
-  const [codigoInput, setCodigoInput] = useState('');
+  const scrollCategoriasRef = useRef(null);
+
+  // --- ESTADOS: USUARIO ---
+  const [usuarioNombre, setUsuarioNombre] = useState('Vendedor');
+
+  // --- ESTADOS: CATÁLOGO ---
   const [productos, setProductos] = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [catSeleccionada, setCatSeleccionada] = useState('todas');
-  const [usuarioNombre, setUsuarioNombre] = useState('Vendedor');
+  const [showProducts, setShowProducts] = useState(false);
 
-  // --- ESTADOS LÓGICOS COBRO ---
+  // --- ESTADOS: VENTA ACTUAL ---
+  const [ventaActual, setVentaActual] = useState([]);
+  const [codigoInput, setCodigoInput] = useState('');
+
+  // --- ESTADOS: PROCESO DE COBRO ---
   const [pasoPago, setPasoPago] = useState(null);
   const [dineroEntregado, setDineroEntregado] = useState('');
   const [cambio, setCambio] = useState(null);
 
-  const scrollCategoriasRef = useRef(null);
   const total = ventaActual.reduce((acc, item) => acc + (item.precio * item.cantidad), 0);
 
-  // --- INTEGRACIÓN BACKEND ---
+  // --- INICIALIZACIÓN Y CARGA DE DATOS ---
   useEffect(() => {
     const auth = JSON.parse(localStorage.getItem('usuarioTendaSoft'));
     if (auth) setUsuarioNombre(auth.nombreUsuario || auth.nombreReal);
@@ -44,16 +49,19 @@ export default function Caja() {
 
       let productosCruzados = [];
       resCat.data.forEach(cat => {
-        if (cat.productos) cat.productos.forEach(prod => productosCruzados.push({ ...prod, idCategoriaReal: cat.id }));
+        if (cat.productos) {
+          cat.productos.forEach(prod => productosCruzados.push({ ...prod, idCategoriaReal: cat.id }));
+        }
       });
 
       const productosFinales = resProd.data.map(p => {
         const prodEncontrado = productosCruzados.find(pc => pc.codigoBarras === p.codigoBarras);
         return { ...p, idCategoriaReal: prodEncontrado ? prodEncontrado.idCategoriaReal : 'sin-categoria' };
       });
+
       setProductos(productosFinales);
     } catch (e) {
-      console.error("Error cargando TPV", e);
+      console.error("Error cargando el catálogo del TPV:", e);
       toast.error("Error al cargar productos");
     }
   };
@@ -62,7 +70,11 @@ export default function Caja() {
   const agregarProducto = (prod) => {
     setVentaActual(prev => {
       const existe = prev.find(item => item.codigoBarras === prod.codigoBarras);
-      if (existe) return prev.map(item => item.codigoBarras === prod.codigoBarras ? { ...item, cantidad: item.cantidad + 1 } : item);
+      if (existe) {
+        return prev.map(item =>
+          item.codigoBarras === prod.codigoBarras ? { ...item, cantidad: item.cantidad + 1 } : item
+        );
+      }
       return [...prev, { ...prod, cantidad: 1 }];
     });
     setCodigoInput('');
@@ -73,7 +85,9 @@ export default function Caja() {
   };
 
   const desplazarCategorias = (direccion) => {
-    if (scrollCategoriasRef.current) scrollCategoriasRef.current.scrollBy({ left: direccion === 'izq' ? -150 : 150, behavior: 'smooth' });
+    if (scrollCategoriasRef.current) {
+      scrollCategoriasRef.current.scrollBy({ left: direccion === 'izq' ? -150 : 150, behavior: 'smooth' });
+    }
   };
 
   const handleNumpadClick = (n) => {
@@ -99,7 +113,7 @@ export default function Caja() {
     }
   };
 
-  // --- VALIDACIÓN DE STOCK ---
+  // --- VALIDACIONES Y CÁLCULOS ---
   const validarStockAntesDeCobrar = () => {
     for (const item of ventaActual) {
       const master = productos.find(p => p.codigoBarras === item.codigoBarras);
@@ -117,98 +131,110 @@ export default function Caja() {
   const calcularCambio = () => {
     const entregado = parseFloat(dineroEntregado.replace(',', '.'));
     if (isNaN(entregado) || entregado < total) {
-      toast.error("Cantidad insuficiente o inválida");
+      toast.error("Cantidad entregada insuficiente o inválida");
       return;
     }
     setCambio(entregado - total);
   };
 
-  // --- LÓGICA DE FINALIZACIÓN ACTUALIZADA ---
+  // --- FINALIZAR VENTA (COMUNICACIÓN CON BACKEND) ---
   const finalizarVenta = async (imprimirTicket) => {
-      if (ventaActual.length === 0) return;
+    if (ventaActual.length === 0) return;
 
-      const tId = toast.loading("Registrando venta...");
+    const tId = toast.loading("Registrando venta...");
 
-      try {
-        const auth = JSON.parse(localStorage.getItem('usuarioTendaSoft'));
+    try {
+      const auth = JSON.parse(localStorage.getItem('usuarioTendaSoft')) || {};
+      const idUsuario = parseInt(auth.idUsuario || auth.id || 1);
 
-        const payloadVenta = {
-          venta: {
-            usuario: { idUsuario: parseInt(auth?.idUsuario || auth?.id) },
-            metodoPago: pasoPago.toUpperCase(),
-            total: parseFloat(total.toFixed(2)),
-            dineroEntregado: pasoPago === 'efectivo'
-              ? parseFloat(String(dineroEntregado).replace(',', '.'))
-              : parseFloat(total.toFixed(2)),
-            cambio: pasoPago === 'efectivo' ? parseFloat(cambio.toFixed(2)) : 0,
-          },
-          lineas: ventaActual.map(item => ({
-            producto: { codigoBarras: String(item.codigoBarras) },
-            cantidad: parseInt(item.cantidad)
-          }))
-        };
+      const payloadVenta = {
+        venta: {
+          usuario: { idUsuario },
+          metodoPago: pasoPago.toUpperCase(),
+          total: parseFloat(total.toFixed(2)),
+          dineroEntregado: pasoPago === 'efectivo'
+            ? parseFloat(String(dineroEntregado).replace(',', '.'))
+            : parseFloat(total.toFixed(2)),
+          cambio: pasoPago === 'efectivo' ? parseFloat(cambio.toFixed(2)) : 0,
+        },
+        lineas: ventaActual.map(item => ({
+          producto: { codigoBarras: String(item.codigoBarras) },
+          cantidad: parseInt(item.cantidad, 10)
+        }))
+      };
 
-        const response = await axios.post('http://localhost:8080/api/ventas', payloadVenta);
-        const ventaGuardada = response.data;
+      const response = await axios.post('http://localhost:8080/api/ventas', payloadVenta);
+      const ventaGuardada = response.data;
 
-        // --- COMPROBACIÓN DE ESTADO VERIFACTU PARA EL TOAST ---
-        const estVF = ventaGuardada.estadoVerifactu;
-        if (estVF === 'FIRMADO' || estVF === 'FIRMADO_Y_PENDIENTE_ENVIO') {
-          toast.success("Venta completada correctamente", { id: tId });
-        } else {
-          toast.error("Venta completada con error en VeriFactu", { id: tId, duration: 5000 });
-        }
+      // --- EVALUACIÓN DEL ESTADO VERIFACTU ---
+      // Capturamos tanto camelCase como snake_case por seguridad de parseo JSON
+      const estadoReal = ventaGuardada.estadoVerifactu || ventaGuardada.estado_verifactu || '';
+      const estVF = String(estadoReal).toUpperCase().trim();
 
-        if (imprimirTicket) {
-          if (window.impresoraAPI) {
-            const configImpresora = JSON.parse(localStorage.getItem('impresoraTendaSoft'));
-            if (!configImpresora) {
-              toast.error("Sin impresora configurada", { id: tId });
-            } else {
-              const datosTicket = {
-                nombreEmpresa: "TendaSoft",
-                cif: "B12345678",
-                lineas: ventaActual.map(item => ({
-                  cantidad: item.cantidad,
-                  concepto: item.nombre,
-                  precio: (item.precio * item.cantidad).toFixed(2)
-                })),
-                total: total.toFixed(2),
-                urlVerifactu: "https://www2.agenciatributaria.gob.es/wlpl/inwinv/es/es.aeat.dit.adu.eaf.j.VerificaQrFacturaEAF"
-              };
+      const esCorrecta = estVF === 'CORRECTO';
+      const esFirmadaLocal = estVF === 'FIRMADO' || estVF === 'FIRMADO_Y_PENDIENTE_ENVIO';
 
-              const resultado = await window.impresoraAPI.imprimirTicket(datosTicket, {
-                nombreImpresora: configImpresora.nombreSistema,
-                ancho: configImpresora.anchoPapel
-              });
-
-              if (!resultado.success) {
-                toast.error("Error al imprimir ticket", { id: tId });
-              }
-            }
-          } else {
-            console.warn("Navegador: Impresión no disponible");
-          }
-        }
-
-        // Limpieza y refresco
-        setVentaActual([]);
-        setPasoPago(null);
-        setDineroEntregado('');
-        setCambio(null);
-        fetchData(); // Refrescamos productos para tener el stock real actualizado
-
-      } catch (error) {
-        console.error("Error al vender:", error);
-        toast.error("Error al registrar venta: " + (error?.response?.data || "Revisa la consola"), { id: tId });
+      if (esCorrecta || esFirmadaLocal) {
+        toast.success(
+          esCorrecta ? "Venta completada y enviada a la AEAT" : "Venta completada (envío AEAT pendiente)",
+          { id: tId, duration: 4000 }
+        );
+      } else {
+        toast.error(`Venta guardada, pero VeriFactu reporta: ${estVF || 'Error desconocido'}`, { id: tId, duration: 5000 });
       }
-    };
 
+      // --- IMPRESIÓN DEL TICKET ---
+      if (imprimirTicket) {
+        if (window.impresoraAPI) {
+          const configImpresora = JSON.parse(localStorage.getItem('impresoraTendaSoft'));
+          if (!configImpresora) {
+            toast.error("Sin impresora configurada");
+          } else {
+            const datosTicket = {
+              nombreEmpresa: "TendaSoft", // Idealmente, traer de una config global
+              cif: "A39200019",
+              lineas: ventaActual.map(item => ({
+                cantidad: item.cantidad,
+                concepto: item.nombre,
+                precio: (item.precio * item.cantidad).toFixed(2)
+              })),
+              total: total.toFixed(2),
+              urlVerifactu: "https://www2.agenciatributaria.gob.es/wlpl/inwinv/es/es.aeat.dit.adu.eaf.j.VerificaQrFacturaEAF"
+            };
+
+            const resultado = await window.impresoraAPI.imprimirTicket(datosTicket, {
+              nombreImpresora: configImpresora.nombreSistema,
+              ancho: configImpresora.anchoPapel
+            });
+
+            if (!resultado.success) {
+              toast.error("Error al comunicarse con la impresora");
+            }
+          }
+        } else {
+          console.warn("Entorno web: API de impresora local no disponible");
+        }
+      }
+
+      // --- LIMPIEZA DE INTERFAZ ---
+      setVentaActual([]);
+      setPasoPago(null);
+      setDineroEntregado('');
+      setCambio(null);
+      fetchData(); // Refrescamos el catálogo para actualizar el stock real
+
+    } catch (error) {
+      console.error("Error al registrar la venta:", error);
+      toast.error("Error al registrar venta: " + (error?.response?.data?.message || "Revisa la consola del servidor"), { id: tId });
+    }
+  };
+
+  // --- RENDERIZADO ---
   return (
     <div className="h-screen bg-[#F4F7F9] p-4 flex flex-col font-sans overflow-hidden antialiased">
       <Toaster position="top-right" reverseOrder={false} />
 
-      {/* === CABECERA === */}
+      {/* --- CABECERA --- */}
       <div className="flex items-center justify-between mb-4 flex-shrink-0">
         <div className="flex items-center">
           <button
@@ -231,9 +257,12 @@ export default function Caja() {
       </div>
 
       <div className="flex flex-1 overflow-hidden">
-        {/* === SECCIÓN IZQUIERDA (TICKET) === */}
+
+        {/* --- SECCIÓN IZQUIERDA (TICKET VIRTUAL) --- */}
         <div className="w-[60%] h-full pr-2">
           <div className="bg-white rounded-[16px] shadow-sm flex flex-col h-full overflow-hidden border-none relative">
+
+            {/* VISTA DE PRODUCTOS AÑADIDOS */}
             {!pasoPago ? (
               <>
                 <div className="flex bg-[#F8F9FA] px-4 py-2.5 text-[11px] font-bold text-[#7F8C8D] tracking-wider uppercase items-center">
@@ -242,9 +271,12 @@ export default function Caja() {
                   <div className="flex-[1.2] text-right">PRECIO</div>
                   <div className="w-8"></div>
                 </div>
+
                 <div className="flex-1 overflow-y-auto p-2 scrollbar-thin">
                   {ventaActual.length === 0 ? (
-                    <div className="h-full flex items-center justify-center text-[#95A5A6] italic text-sm">Esperando productos...</div>
+                    <div className="h-full flex items-center justify-center text-[#95A5A6] italic text-sm">
+                      Esperando productos...
+                    </div>
                   ) : (
                     ventaActual.map(item => {
                       const prodMaster = productos.find(p => p.codigoBarras === item.codigoBarras);
@@ -267,7 +299,9 @@ export default function Caja() {
                     })
                   )}
                 </div>
+
                 <div className="h-[1px] bg-[#E0E6ED] w-full" />
+
                 <div className="h-20 flex items-center px-6 justify-between bg-white">
                   <button
                     onClick={() => {
@@ -284,6 +318,8 @@ export default function Caja() {
                 </div>
               </>
             ) : (
+
+              /* VISTA DE PAGO */
               <div className="flex flex-col h-full animate-in zoom-in-95 duration-200 bg-white relative">
                 <button
                   onClick={() => { setPasoPago(null); setCambio(null); setDineroEntregado(''); }}
@@ -291,6 +327,8 @@ export default function Caja() {
                 >
                   <ArrowLeft size={18} className="mr-1" /> Volver al ticket
                 </button>
+
+                {/* 1. SELECCIÓN DE MÉTODO */}
                 {pasoPago === 'seleccion' && (
                   <div className="flex flex-col items-center justify-center h-full px-12">
                     <p className="text-[#1565C0] text-5xl font-black mb-10 text-center">TOTAL: {total.toFixed(2)} €</p>
@@ -305,6 +343,8 @@ export default function Caja() {
                     </div>
                   </div>
                 )}
+
+                {/* 2. PAGO EN EFECTIVO */}
                 {pasoPago === 'efectivo' && (
                   <div className="flex flex-col items-center justify-center h-full px-16 pt-8">
                     <p className="text-[#1565C0] text-4xl font-black mb-8">TOTAL: {total.toFixed(2)} €</p>
@@ -315,19 +355,29 @@ export default function Caja() {
                       <div className="animate-in slide-in-from-bottom-4 flex flex-col items-center w-full">
                         <p className="text-[#2ECC71] text-4xl font-black mb-8">Cambio: {cambio.toFixed(2)} €</p>
                         <div className="flex w-full space-x-4">
-                          <button onClick={() => finalizarVenta(false)} className="flex-1 bg-[#2ECC71] text-white h-[72px] rounded-[16px] font-bold text-xl hover:bg-[#27ae60]">FINALIZAR</button>
-                          <button onClick={() => finalizarVenta(true)} className="flex-1 border-4 border-[#1976D2] text-[#1976D2] h-[72px] rounded-[16px] font-bold text-xl flex items-center justify-center hover:bg-blue-50"><Printer className="mr-2" size={24}/> TICKET</button>
+                          <button onClick={() => finalizarVenta(false)} className="flex-1 bg-[#2ECC71] text-white h-[72px] rounded-[16px] font-bold text-xl hover:bg-[#27ae60] shadow-sm">
+                            FINALIZAR
+                          </button>
+                          <button onClick={() => finalizarVenta(true)} className="flex-1 border-4 border-[#1976D2] text-[#1976D2] bg-white h-[72px] rounded-[16px] font-bold text-xl flex items-center justify-center hover:bg-blue-50 shadow-sm">
+                            <Printer className="mr-2" size={24}/> TICKET
+                          </button>
                         </div>
                       </div>
                     )}
                   </div>
                 )}
+
+                {/* 3. PAGO CON TARJETA */}
                 {pasoPago === 'tarjeta' && (
                   <div className="flex flex-col items-center justify-center h-full px-16">
                     <p className="text-[#1976D2] text-[64px] font-black mb-16 tracking-tighter">{total.toFixed(2)} €</p>
                     <div className="flex w-full space-x-6">
-                      <button onClick={() => finalizarVenta(false)} className="flex-1 bg-[#2ECC71] text-white h-[80px] rounded-[16px] font-bold text-xl hover:bg-[#27ae60]">FINALIZAR</button>
-                      <button onClick={() => finalizarVenta(true)} className="flex-1 border-4 border-[#1976D2] text-[#1976D2] h-[80px] rounded-[16px] font-bold text-xl flex items-center justify-center hover:bg-blue-50"><Printer className="mr-2" size={24}/> TICKET</button>
+                      <button onClick={() => finalizarVenta(false)} className="flex-1 bg-[#2ECC71] text-white h-[80px] rounded-[16px] font-bold text-xl hover:bg-[#27ae60] shadow-sm">
+                        FINALIZAR
+                      </button>
+                      <button onClick={() => finalizarVenta(true)} className="flex-1 border-4 border-[#1976D2] text-[#1976D2] bg-white h-[80px] rounded-[16px] font-bold text-xl flex items-center justify-center hover:bg-blue-50 shadow-sm">
+                        <Printer className="mr-2" size={24}/> TICKET
+                      </button>
                     </div>
                   </div>
                 )}
@@ -336,73 +386,121 @@ export default function Caja() {
           </div>
         </div>
 
-        {/* === SECCIÓN DERECHA (NUMPAD/PRODUCTOS) === */}
+        {/* --- SECCIÓN DERECHA (NUMPAD / CATÁLOGO) --- */}
         <div className="w-[40%] h-full flex flex-col">
+
+          {/* BARRA DE BÚSQUEDA Y BOTÓN DE CATÁLOGO */}
           {!pasoPago && (
             <div className="animate-in fade-in">
-              <input type="text" placeholder="Código de barras" value={codigoInput} onChange={(e) => setCodigoInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleEnterClick()} className="w-full h-[48px] bg-white border border-gray-200 rounded-[8px] text-center text-[16px] font-bold text-[#2C3E50] focus:outline-none mb-2 shadow-sm" />
-              <button onClick={() => setShowProducts(!showProducts)} className="w-full h-[44px] bg-[#2C3E50] text-white font-bold rounded-[8px] uppercase text-xs tracking-widest mb-3 hover:bg-black transition-colors">
-                {showProducts ? "OCULTAR PRODUCTOS" : "VER PRODUCTOS"}
+              <input
+                type="text"
+                placeholder="Código de barras"
+                value={codigoInput}
+                onChange={(e) => setCodigoInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleEnterClick()}
+                className="w-full h-[48px] bg-white border border-gray-200 rounded-[8px] text-center text-[16px] font-bold text-[#2C3E50] focus:outline-none mb-2 shadow-sm"
+              />
+              <button
+                onClick={() => setShowProducts(!showProducts)}
+                className="w-full h-[44px] bg-[#2C3E50] text-white font-bold rounded-[8px] uppercase text-xs tracking-widest mb-3 hover:bg-black transition-colors"
+              >
+                {showProducts ? "OCULTAR CATÁLOGO" : "VER CATÁLOGO"}
               </button>
             </div>
           )}
+
           <div className="flex-1 flex flex-col overflow-hidden">
+            {/* VISTA DE CATÁLOGO DE PRODUCTOS */}
             {showProducts && !pasoPago ? (
               <div className="flex flex-col h-full animate-in fade-in duration-200">
                 <div className="flex items-center space-x-1 mb-3 w-full">
-                  <button onClick={() => desplazarCategorias('izq')} className="p-1"><ChevronLeft size={24} /></button>
-                  <div ref={scrollCategoriasRef} className="flex overflow-x-auto space-x-2 flex-1 scrollbar-hide">
-                    <button onClick={() => setCatSeleccionada('todas')} className={`px-4 py-2 rounded-[6px] text-[12px] font-bold whitespace-nowrap ${catSeleccionada === 'todas' ? 'bg-[#2C3E50] text-white' : 'bg-white text-[#2C3E50]'}`}>Todos</button>
+                  <button onClick={() => desplazarCategorias('izq')} className="p-1 text-slate-500 hover:text-black">
+                    <ChevronLeft size={24} />
+                  </button>
+                  <div ref={scrollCategoriasRef} className="flex overflow-x-auto space-x-2 flex-1 scrollbar-hide pb-1">
+                    <button
+                      onClick={() => setCatSeleccionada('todas')}
+                      className={`px-4 py-2 rounded-[6px] text-[12px] font-bold whitespace-nowrap transition-colors ${catSeleccionada === 'todas' ? 'bg-[#2C3E50] text-white' : 'bg-white text-[#2C3E50] hover:bg-slate-100 border border-slate-200'}`}
+                    >
+                      Todos
+                    </button>
                     {categorias.map(cat => (
-                      <button key={cat.id} onClick={() => setCatSeleccionada(cat.id)} className={`px-4 py-2 rounded-[6px] text-[12px] font-bold whitespace-nowrap ${String(catSeleccionada) === String(cat.id) ? 'bg-[#2C3E50] text-white' : 'bg-white text-[#2C3E50]'}`}>{cat.nombre}</button>
+                      <button
+                        key={cat.id}
+                        onClick={() => setCatSeleccionada(cat.id)}
+                        className={`px-4 py-2 rounded-[6px] text-[12px] font-bold whitespace-nowrap transition-colors ${String(catSeleccionada) === String(cat.id) ? 'bg-[#2C3E50] text-white' : 'bg-white text-[#2C3E50] hover:bg-slate-100 border border-slate-200'}`}
+                      >
+                        {cat.nombre}
+                      </button>
                     ))}
                   </div>
-                  <button onClick={() => desplazarCategorias('der')} className="p-1"><ChevronRight size={24} /></button>
+                  <button onClick={() => desplazarCategorias('der')} className="p-1 text-slate-500 hover:text-black">
+                    <ChevronRight size={24} />
+                  </button>
                 </div>
-                <div className="flex-1 overflow-y-auto grid grid-cols-3 gap-3 content-start pb-2">
-                  {productos.filter(p => catSeleccionada === 'todas' || String(p.idCategoriaReal) === String(catSeleccionada)).map(p => (
-                    <div
-                      key={p.codigoBarras}
-                      onClick={() => agregarProducto(p)}
-                      className="bg-white rounded-[12px] p-2 flex flex-col items-center text-center cursor-pointer active:scale-95 shadow-sm hover:shadow-md border border-slate-100"
-                    >
-                      <div className="w-16 h-16 mb-2 rounded-lg overflow-hidden bg-slate-50 flex items-center justify-center shrink-0">
-                        {p.urlImagen ? (
-                          <img
-                            src={`http://localhost:8080/uploads/${p.urlImagen}`}
-                            alt={p.nombre}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              e.target.style.display = 'none';
-                              e.target.nextSibling.style.display = 'block';
-                            }}
+
+                <div className="flex-1 overflow-y-auto grid grid-cols-3 gap-3 content-start pb-2 pr-1 scrollbar-thin">
+                  {productos
+                    .filter(p => catSeleccionada === 'todas' || String(p.idCategoriaReal) === String(catSeleccionada))
+                    .map(p => (
+                      <div
+                        key={p.codigoBarras}
+                        onClick={() => agregarProducto(p)}
+                        className="bg-white rounded-[12px] p-2 flex flex-col items-center text-center cursor-pointer active:scale-95 shadow-sm hover:shadow-md border border-slate-100 transition-all"
+                      >
+                        <div className="w-16 h-16 mb-2 rounded-lg overflow-hidden bg-slate-50 flex items-center justify-center shrink-0">
+                          {p.urlImagen ? (
+                            <img
+                              src={`http://localhost:8080/uploads/${p.urlImagen}`}
+                              alt={p.nombre}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                                e.target.nextSibling.style.display = 'block';
+                              }}
+                            />
+                          ) : null}
+                          <ImageIcon
+                            size={24}
+                            className="text-slate-300"
+                            style={{ display: p.urlImagen ? 'none' : 'block' }}
                           />
-                        ) : null}
-                        <ImageIcon
-                          size={24}
-                          className="text-slate-300"
-                          style={{ display: p.urlImagen ? 'none' : 'block' }}
-                        />
+                        </div>
+                        <p className="text-[11px] font-bold text-[#2C3E50] truncate w-full leading-tight">{p.nombre}</p>
+                        <p className="text-[14px] font-black text-[#1976D2] mt-1">{p.precio.toFixed(2)} €</p>
                       </div>
-                      <p className="text-[11px] font-bold text-[#2C3E50] truncate w-full leading-tight">{p.nombre}</p>
-                      <p className="text-[14px] font-black text-[#1976D2] mt-1">{p.precio.toFixed(2)} €</p>
-                    </div>
                   ))}
                 </div>
               </div>
             ) : (
+              /* VISTA DEL TECLADO NUMÉRICO (NUMPAD) */
               <div className={`grid grid-cols-3 gap-1.5 flex-1 pb-2 ${pasoPago ? 'pt-2' : ''}`}>
                 {[1, 2, 3, 4, 5, 6, 7, 8, 9, ',', 0].map(n => (
-                  <button key={n} onClick={() => handleNumpadClick(n)} className="bg-white rounded-[12px] text-[28px] font-bold text-[#2C3E50] active:bg-slate-200 shadow-sm border border-gray-100">{n}</button>
+                  <button
+                    key={n}
+                    onClick={() => handleNumpadClick(n)}
+                    className="bg-white rounded-[12px] text-[28px] font-bold text-[#2C3E50] active:bg-slate-200 shadow-sm border border-gray-100 transition-colors"
+                  >
+                    {n}
+                  </button>
                 ))}
-                <button onClick={handleNumpadDelete} className="bg-white rounded-[12px] flex items-center justify-center border border-gray-100"><Delete size={32} className="text-[#95A5A6]" /></button>
+                <button
+                  onClick={handleNumpadDelete}
+                  className="bg-white rounded-[12px] flex items-center justify-center border border-gray-100 active:bg-slate-200 transition-colors shadow-sm"
+                >
+                  <Delete size={32} className="text-[#95A5A6]" />
+                </button>
               </div>
             )}
+
+            {/* BOTÓN ENTER / CALCULAR CAMBIO */}
             {(!showProducts || pasoPago) && (
               <button
                 onClick={handleEnterClick}
                 disabled={pasoPago === 'seleccion' || pasoPago === 'tarjeta'}
-                className={`w-full h-[72px] font-black rounded-[12px] text-[20px] tracking-widest mt-2 shadow-md transition-all ${pasoPago === 'efectivo' ? 'bg-[#2ECC71] text-white' : 'bg-[#2C3E50] text-white active:bg-black'}`}
+                className={`w-full h-[72px] font-black rounded-[12px] text-[20px] tracking-widest mt-2 shadow-md transition-all ${
+                  pasoPago === 'efectivo' ? 'bg-[#2ECC71] text-white hover:bg-[#27ae60]' : 'bg-[#2C3E50] text-white hover:bg-black'
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
               >
                 {pasoPago === 'efectivo' ? 'CALCULAR CAMBIO' : 'ENTER'}
               </button>

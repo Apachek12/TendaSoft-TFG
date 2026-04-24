@@ -5,7 +5,6 @@ import com.TFG.TendaSoft.dto.LineaVentaDTO;
 import com.TFG.TendaSoft.dto.VentaListadoDTO;
 import com.TFG.TendaSoft.model.*;
 import com.TFG.TendaSoft.repository.*;
-import com.TFG.TendaSoft.utils.VerifactuUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,34 +28,47 @@ public class VentaService {
     private final DatosNegocioRepository datosNegocioRepository;
     private final VerifactuXmlService xmlService;
     private final FirmaDigitalService firmaDigitalService;
+    private final VerifactuHttpService verifactuHttpService;
 
     @Transactional
     public Venta registrarNuevaVenta(Venta venta, List<LineaVenta> lineas) {
         if (venta == null) throw new RuntimeException("El objeto venta es nulo.");
 
         DatosNegocio negocio = datosNegocioRepository.findTopByOrderByIdAsc()
-                .orElseThrow(() -> new RuntimeException("Error: Configure los datos de la empresa en el panel de administración."));
+                .orElseThrow(() -> new RuntimeException("Error: Configure los datos de la empresa."));
 
+        // 1. Asignar número y fecha
         venta.setNumeroFactura(generarSiguienteNumeroFactura());
         venta.setFecha(LocalDateTime.now());
         if (venta.getTipoFactura() == null) venta.setTipoFactura("F2");
 
-        Optional<Venta> ultimaVentaOpt = ventaRepository.findFirstByOrderByIdDesc();
-        String hashAnterior = ultimaVentaOpt.map(Venta::getHashVerifactu).orElse("INICIO-SISTEMA");
-        venta.setHashAnterior(hashAnterior);
+        // 2. Encadenar solo a la última factura CORRECTAMENTE aceptada por la AEAT
+        Optional<Venta> ultimaVentaOpt = ventaRepository
+                .findFirstByEstadoVerifactuOrderByIdDesc("CORRECTO");
+        if (ultimaVentaOpt.isPresent()) {
+            Venta anterior = ultimaVentaOpt.get();
+            venta.setHashAnterior(anterior.getHashVerifactu());
+            venta.setNumeroFacturaAnterior(anterior.getNumeroFactura());
+            venta.setFechaAnterior(anterior.getFecha());
+            venta.setCifEmisorAnterior(negocio.getCif());
+        } else {
+            venta.setHashAnterior("INICIO-SISTEMA");
+            venta.setNumeroFacturaAnterior(null);
+            venta.setFechaAnterior(null);
+            venta.setCifEmisorAnterior(null);
+        }
 
+        venta.setHashVerifactu("PENDIENTE_CALCULO");
+        venta.setEstadoVerifactu("PROCESANDO");
+
+        // --- CÁLCULOS DE LÍNEAS E IVA ---
         BigDecimal baseImponibleTotal = BigDecimal.ZERO;
         BigDecimal cuotaIvaTotal = BigDecimal.ZERO;
-
         if (venta.getLineas() == null) venta.setLineas(new ArrayList<>());
 
         for (LineaVenta linea : lineas) {
             Producto producto = productoRepository.findById(linea.getProducto().getCodigoBarras())
-                    .orElseThrow(() -> new RuntimeException("Producto no encontrado: " + linea.getProducto().getCodigoBarras()));
-
-            if (producto.getUnidades() < linea.getCantidad()) {
-                throw new IllegalStateException("Stock insuficiente de: " + producto.getNombre());
-            }
+                    .orElseThrow(() -> new RuntimeException("Producto no encontrado."));
 
             producto.setUnidades(producto.getUnidades() - linea.getCantidad());
             productoRepository.save(producto);
@@ -69,9 +81,7 @@ public class VentaService {
             BigDecimal baseLinea = totalLineaPVP.divide(divisor, 2, RoundingMode.HALF_UP);
             BigDecimal ivaLinea = totalLineaPVP.subtract(baseLinea);
 
-            BigDecimal precioUnitarioSinIva = baseLinea.divide(cantidadBD, 2, RoundingMode.HALF_UP);
-
-            linea.setPrecioUnitario(precioUnitarioSinIva);
+            linea.setPrecioUnitario(baseLinea.divide(cantidadBD, 2, RoundingMode.HALF_UP));
             linea.setPorcentajeIva(porcIva);
             linea.setImporteIva(ivaLinea);
             linea.setNombreProducto(producto.getNombre());
@@ -85,52 +95,57 @@ public class VentaService {
         venta.setCuotaIvaTotal(cuotaIvaTotal);
         venta.setTotal(baseImponibleTotal.add(cuotaIvaTotal));
 
-        String hashGenerado = VerifactuUtils.generarHashVerifactu(
-                negocio.getCif(),
-                venta.getNumeroFactura(),
-                venta.getFecha(),
-                venta.getTipoFactura(),
-                venta.getCuotaIvaTotal(),
-                venta.getTotal(),
-                venta.getHashAnterior()
-        );
-        venta.setHashVerifactu(hashGenerado);
-        venta.setEstadoVerifactu("PENDIENTE_ENVIO");
-
+        // 3. Guardado inicial
         Venta ventaGuardada = ventaRepository.save(venta);
         for (LineaVenta l : lineas) {
             l.setVenta(ventaGuardada);
             lineaVentaRepository.save(l);
         }
 
-        // --- BLOQUE VERIFACTU: GENERACIÓN, VALIDACIÓN Y FIRMA ---
+        // --- BLOQUE VERIFACTU ---
         try {
-            // 1. Generar el XML
+            System.out.println(">>> 1. Iniciando proceso VeriFactu...");
             String xmlFactura = xmlService.generarXmlAltaFactura(ventaGuardada, lineas, negocio);
+            System.out.println(">>> 2. XML Generado. Longitud: " + xmlFactura.length());
 
-            // 2. VALIDAR EL XML (¡Añadimos esta línea!)
-            boolean esValido = xmlService.validarXmlContraEsquema(xmlFactura);
-            if (!esValido) {
-                // Al lanzar RuntimeException, el @Transactional hará Rollback (borra la venta y devuelve stock)
-                throw new RuntimeException("ERROR AEAT: El XML generado no es válido según el esquema oficial.");
-            }
+            if (xmlService.validarXmlContraEsquema(xmlFactura)) {
+                String rutaCert = negocio.getRutaCertificado();
+                String passCert = negocio.getCertificadoPassword();
 
-            // 3. Firmar el XML
-            String rutaCert = negocio.getRutaCertificado();
-            String passCert = "123456";
+                if (rutaCert != null && passCert != null) {
+                    System.out.println(">>> 3. Firmando XML...");
+                    String xmlFirmado = firmaDigitalService.firmarXml(xmlFactura, rutaCert, passCert);
+                    ventaGuardada.setXmlFirmado(xmlFirmado);
+                    System.out.println(">>> 4. XML Firmado correctamente.");
 
-            if (rutaCert != null && !rutaCert.isEmpty()) {
-                String xmlFirmado = firmaDigitalService.firmarXml(xmlFactura, rutaCert, passCert);
-                ventaGuardada.setEstadoVerifactu("FIRMADO_Y_PENDIENTE_ENVIO");
-                ventaRepository.save(ventaGuardada);
-                System.out.println("XML Validado y Firmado con éxito.");
+                    try {
+                        System.out.println(">>> 5. Enviando a la AEAT...");
+                        String respuestaAeat = verifactuHttpService.enviarFacturaAEAT(xmlFirmado, rutaCert, passCert);
+                        System.out.println(">>> 6. Respuesta AEAT: " + respuestaAeat);
+
+                        if (esRespuestaCorrecta(respuestaAeat)) {
+                            ventaGuardada.setEstadoVerifactu("CORRECTO");
+                        } else {
+                            ventaGuardada.setEstadoVerifactu("ERROR_AEAT");
+                        }
+                    } catch (Exception e) {
+                        ventaGuardada.setEstadoVerifactu("FIRMADO_Y_PENDIENTE_ENVIO");
+                        System.err.println(">>> ⚠️ Error HTTP con AEAT: " + e.getMessage());
+                    }
+
+                    ventaGuardada = ventaRepository.saveAndFlush(ventaGuardada);
+                    System.out.println(">>> 7. Estado final guardado: " + ventaGuardada.getEstadoVerifactu());
+                } else {
+                    System.err.println(">>> ❌ Faltan credenciales de certificado.");
+                }
+            } else {
+                System.err.println(">>> ❌ XML falló la validación.");
             }
         } catch (Exception e) {
-            // Si el error es de validación, relanzamos la excepción para anular la venta
-            if (e.getMessage().contains("ERROR AEAT")) {
-                throw e;
-            }
-            System.err.println("Error en proceso VeriFactu (Firma): " + e.getMessage());
+            System.err.println(">>> 🚨 Error CRÍTICO VeriFactu: " + e.getMessage());
+            e.printStackTrace();
+            ventaGuardada.setEstadoVerifactu("ERROR_FIRMA");
+            ventaRepository.save(ventaGuardada);
         }
 
         return ventaGuardada;
@@ -144,47 +159,73 @@ public class VentaService {
         DatosNegocio negocio = datosNegocioRepository.findTopByOrderByIdAsc()
                 .orElseThrow(() -> new RuntimeException("Configure los datos de la empresa"));
 
-        // Recuperamos las líneas (necesarias para generar el XML)
-        List<LineaVenta> lineas = venta.getLineas();
+        String rutaCert = negocio.getRutaCertificado();
+        String passCert = negocio.getCertificadoPassword();
+
+        if (rutaCert == null || rutaCert.isEmpty() || passCert == null) {
+            venta.setEstadoVerifactu("ERROR_FIRMA");
+            return ventaRepository.save(venta);
+        }
 
         try {
-            // 1. Generar y Validar XML
-            String xmlFactura = xmlService.generarXmlAltaFactura(venta, lineas, negocio);
-            boolean esValido = xmlService.validarXmlContraEsquema(xmlFactura);
+            String xmlFirmado = venta.getXmlFirmado();
+            boolean tieneFirmado = xmlFirmado != null && !xmlFirmado.isBlank();
 
-            if (!esValido) {
-                venta.setEstadoVerifactu("ERROR_XML");
-                return ventaRepository.save(venta);
+            if (!tieneFirmado) {
+                System.out.println(">>> Reintento: regenerando y firmando XML...");
+                String xmlFactura = xmlService.generarXmlAltaFactura(venta, venta.getLineas(), negocio);
+                if (!xmlService.validarXmlContraEsquema(xmlFactura)) {
+                    venta.setEstadoVerifactu("ERROR_XML");
+                    return ventaRepository.save(venta);
+                }
+                xmlFirmado = firmaDigitalService.firmarXml(xmlFactura, rutaCert, passCert);
+                venta.setXmlFirmado(xmlFirmado);
+            } else {
+                System.out.println(">>> Reintento: reutilizando XML firmado existente...");
             }
 
-            // 2. Firmar
-            String rutaCert = negocio.getRutaCertificado();
-            String passCert = "123456"; // Idealmente esto vendría de configuración o vault
+            venta.setEstadoVerifactu("FIRMADO");
 
-            if (rutaCert != null && !rutaCert.isEmpty()) {
-                String xmlFirmado = firmaDigitalService.firmarXml(xmlFactura, rutaCert, passCert);
-                // Si la firma es correcta, lo marcamos como FIRMADO
-                venta.setEstadoVerifactu("FIRMADO");
-                System.out.println("Reintento: XML Firmado con éxito para factura: " + venta.getNumeroFactura());
+            try {
+                String respuestaAeat = verifactuHttpService.enviarFacturaAEAT(xmlFirmado, rutaCert, passCert);
+                if (esRespuestaCorrecta(respuestaAeat)) {
+                    venta.setEstadoVerifactu("CORRECTO");
+                } else {
+                    venta.setEstadoVerifactu("ERROR_AEAT");
+                    System.err.println(">>> Reintento: respuesta AEAT incorrecta: " + respuestaAeat);
+                }
+            } catch (Exception e) {
+                venta.setEstadoVerifactu("FIRMADO_Y_PENDIENTE_ENVIO");
+                System.err.println(">>> Reintento: error HTTP: " + e.getMessage());
             }
+
         } catch (Exception e) {
             venta.setEstadoVerifactu("ERROR_FIRMA");
-            System.err.println("Error en reintento VeriFactu: " + e.getMessage());
+            System.err.println(">>> Reintento: error al firmar: " + e.getMessage());
         }
 
         return ventaRepository.save(venta);
     }
 
+    /**
+     * La AEAT usa namespaces (tikR:EstadoEnvio, tikR:EstadoRegistro).
+     * Buscar ">Correcto<" funciona independientemente del namespace.
+     */
+    private boolean esRespuestaCorrecta(String respuesta) {
+        return respuesta.contains(">Correcto<");
+    }
+
     private String generarSiguienteNumeroFactura() {
         int anioActual = LocalDate.now().getYear();
         String prefijo = "FAC-" + anioActual;
-        Optional<Venta> ultimaVentaOpt = ventaRepository.findFirstByNumeroFacturaStartingWithOrderByIdDesc(prefijo);
+        Optional<Venta> ultimaVentaOpt = ventaRepository
+                .findFirstByNumeroFacturaStartingWithOrderByIdDesc(prefijo);
 
         if (ultimaVentaOpt.isPresent()) {
             try {
                 String ultimoNumStr = ultimaVentaOpt.get().getNumeroFactura();
                 String[] partes = ultimoNumStr.split("-");
-                int ultimoSecuencial = Integer.parseInt(partes[2]);
+                int ultimoSecuencial = Integer.parseInt(partes[partes.length - 1]);
                 return String.format("FAC-%d-%04d", anioActual, ultimoSecuencial + 1);
             } catch (Exception e) {
                 return String.format("FAC-%d-0001", anioActual);
@@ -265,9 +306,6 @@ public class VentaService {
     }
 }
 
-
 /*TODO Cuándo se enciende/apaga el TPV.
-
 Cuándo hay un error en la firma (lo que ya tienes en el catch).
-
 Intentos de acceso no autorizados. */

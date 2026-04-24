@@ -26,9 +26,12 @@ public interface VentaRepository extends JpaRepository<Venta, Long> {
             @Param("metodo") String metodo
     );
 
+    Optional<Venta> findFirstByEstadoVerifactuOrderByIdDesc(String estadoVerifactu);
+
     Optional<Venta> findFirstByOrderByIdDesc();
 
     Optional<Venta> findFirstByNumeroFacturaStartingWithOrderByIdDesc(String prefijo);
 
     List<Venta> findByFechaBetweenOrderByFechaDesc(LocalDateTime inicio, LocalDateTime fin);
+
 }

@@ -1,102 +1,84 @@
 package com.TFG.TendaSoft.service;
 
+import org.apache.xml.security.Init;
+import org.apache.xml.security.signature.XMLSignature;
+import org.apache.xml.security.transforms.Transforms;
 import org.springframework.stereotype.Service;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
-import org.w3c.dom.NodeList;
 
-import javax.xml.crypto.dsig.*;
-import javax.xml.crypto.dsig.dom.DOMSignContext;
-import javax.xml.crypto.dsig.keyinfo.KeyInfo;
-import javax.xml.crypto.dsig.keyinfo.KeyInfoFactory;
-import javax.xml.crypto.dsig.keyinfo.X509Data;
-import javax.xml.crypto.dsig.spec.C14NMethodParameterSpec;
-import javax.xml.crypto.dsig.spec.TransformParameterSpec;
-import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.transform.Transformer;
-import javax.xml.transform.TransformerFactory;
-import javax.xml.transform.dom.DOMSource;
-import javax.xml.transform.stream.StreamResult;
 import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
-import java.io.StringWriter;
+import java.nio.charset.StandardCharsets;
 import java.security.KeyStore;
 import java.security.PrivateKey;
 import java.security.cert.X509Certificate;
-import java.util.Collections;
 
 @Service
 public class FirmaDigitalService {
 
-    /**
-     * Firma un documento XML utilizando un certificado digital PKCS12 (.p12 o .pfx).
-     *
-     * @param xmlOriginal El XML en formato String validado.
-     * @param rutaCertificado Ruta en el disco duro al archivo .p12 / .pfx.
-     * @param passwordCertificado Contraseña del certificado.
-     * @return El XML firmado en formato String.
-     */
-    public String firmarXml(String xmlOriginal, String rutaCertificado, String passwordCertificado) {
+    static {
+        Init.init();
+    }
+
+    public String firmarXml(String xml, String rutaP12, String password) {
         try {
-            // 1. Cargar el Certificado Digital y la Clave Privada
-            KeyStore keyStore = KeyStore.getInstance("PKCS12");
-            try (FileInputStream fis = new FileInputStream(rutaCertificado)) {
-                keyStore.load(fis, passwordCertificado.toCharArray());
-            }
-
-            String alias = keyStore.aliases().nextElement();
-            PrivateKey privateKey = (PrivateKey) keyStore.getKey(alias, passwordCertificado.toCharArray());
-            X509Certificate cert = (X509Certificate) keyStore.getCertificate(alias);
-
-            // 2. Convertir el String XML a un Documento DOM de Java
             DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
             dbf.setNamespaceAware(true);
-            DocumentBuilder builder = dbf.newDocumentBuilder();
-            Document doc = builder.parse(new ByteArrayInputStream(xmlOriginal.getBytes("UTF-8")));
+            Document doc = dbf.newDocumentBuilder()
+                    .parse(new ByteArrayInputStream(xml.getBytes(StandardCharsets.UTF_8)));
 
-            // 3. Configurar el motor de firma XMLDSig de Java
-            XMLSignatureFactory fac = XMLSignatureFactory.getInstance("DOM");
-
-            // Crear la referencia (apunta a la raíz del documento y usa la transformación ENVELOPED)
-            Reference ref = fac.newReference("", fac.newDigestMethod(DigestMethod.SHA256, null),
-                    Collections.singletonList(fac.newTransform(Transform.ENVELOPED, (TransformParameterSpec) null)),
-                    null, null);
-
-            // Configurar SignedInfo (Canonicalización y método de firma RSA-SHA256)
-            SignedInfo si = fac.newSignedInfo(
-                    fac.newCanonicalizationMethod(CanonicalizationMethod.INCLUSIVE, (C14NMethodParameterSpec) null),
-                    fac.newSignatureMethod(SignatureMethod.RSA_SHA256, null),
-                    Collections.singletonList(ref));
-
-            // Configurar KeyInfo (Añadir el certificado público al XML para que Hacienda pueda verificarlo)
-            KeyInfoFactory kif = fac.getKeyInfoFactory();
-            X509Data xd = kif.newX509Data(Collections.singletonList(cert));
-            KeyInfo ki = kif.newKeyInfo(Collections.singletonList(xd));
-
-            // 4. Firmar el documento
-            // Hacienda exige que la firma cuelgue de <sum:RegistroAlta> o <sum:RegistroAnulacion>
-            NodeList nodosAlta = doc.getElementsByTagNameNS("*", "RegistroAlta");
-            if (nodosAlta.getLength() == 0) {
-                throw new RuntimeException("No se encontró la etiqueta RegistroAlta en el XML");
+            KeyStore ks = KeyStore.getInstance("PKCS12");
+            try (FileInputStream fis = new FileInputStream(rutaP12)) {
+                ks.load(fis, password.toCharArray());
             }
-            Element nodoAlta = (Element) nodosAlta.item(0);
 
-            // Le decimos al contexto de firma dónde incrustarla
-            DOMSignContext dsc = new DOMSignContext(privateKey, nodoAlta);
-            XMLSignature signature = fac.newXMLSignature(si, ki);
-            signature.sign(dsc);
+            String alias = ks.aliases().nextElement();
+            PrivateKey privateKey = (PrivateKey) ks.getKey(alias, password.toCharArray());
+            X509Certificate cert = (X509Certificate) ks.getCertificate(alias);
 
-            // 5. Convertir el Documento DOM firmado de vuelta a un String
-            TransformerFactory tf = TransformerFactory.newInstance();
-            Transformer trans = tf.newTransformer();
-            StringWriter sw = new StringWriter();
-            trans.transform(new DOMSource(doc), new StreamResult(sw));
+            Element root = doc.getDocumentElement();
 
-            return sw.toString();
+            // FIX: setAttribute() sola no registra el atributo como tipo ID en el DOM.
+            // Apache Santuario usa doc.getElementById() internamente para resolver "#root",
+            // y ese método solo funciona si el atributo está declarado como ID con
+            // setIdAttribute(). Sin esta línea el resolver lanza ReferenceNotInitializedException.
+            root.setAttribute("Id", "root");
+            root.setIdAttribute("Id", true);
+
+            XMLSignature sig = new XMLSignature(doc, "", XMLSignature.ALGO_ID_SIGNATURE_RSA_SHA256);
+            root.appendChild(sig.getElement());
+
+            Transforms transforms = new Transforms(doc);
+            transforms.addTransform(Transforms.TRANSFORM_ENVELOPED_SIGNATURE);
+            // FIX: Añadir canonicalización exclusiva (exc-c14n) para que la firma
+            // sea estable cuando el XML se inserta dentro del SOAP envelope,
+            // evitando que los namespaces heredados del envelope la invaliden.
+            transforms.addTransform(Transforms.TRANSFORM_C14N_EXCL_OMIT_COMMENTS);
+
+            // FIX: Referenciar solo el elemento raíz por su ID, no todo el documento
+            sig.addDocument("#root", transforms, "http://www.w3.org/2001/04/xmlenc#sha256");
+
+            sig.addKeyInfo(cert);
+            sig.sign(privateKey);
+
+            javax.xml.transform.TransformerFactory tf = javax.xml.transform.TransformerFactory.newInstance();
+            javax.xml.transform.Transformer transformer = tf.newTransformer();
+
+            // Omitir el prólogo XML — se añade manualmente al construir el SOAP envelope
+            transformer.setOutputProperty(javax.xml.transform.OutputKeys.OMIT_XML_DECLARATION, "yes");
+
+            java.io.StringWriter writer = new java.io.StringWriter();
+            transformer.transform(
+                    new javax.xml.transform.dom.DOMSource(doc),
+                    new javax.xml.transform.stream.StreamResult(writer)
+            );
+
+            return writer.toString();
 
         } catch (Exception e) {
-            throw new RuntimeException("Error fatal al firmar el XML de VeriFactu: " + e.getMessage(), e);
+            throw new RuntimeException("Error al firmar el XML: " + e.getMessage(), e);
         }
     }
 }
