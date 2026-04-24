@@ -29,29 +29,33 @@ export default function Dashboard() {
   }, [navigate]);
 
   const verificarStock = async () => {
-    try {
-      const response = await axios.get('http://localhost:8080/api/productos');
-      const criticos = response.data.filter(p => p.unidades < 50 && p.activo !== false);
+      // Si ya se mostró en esta sesión, no volver a mostrar
+      if (sessionStorage.getItem('stockAlertaMostrada')) return;
 
-      if (criticos.length > 0) {
-        const listaNombres = criticos.map(p => p.nombre).join(', ');
+      try {
+        const response = await axios.get('http://localhost:8080/api/productos');
+        const criticos = response.data.filter(p => p.unidades < 50 && p.activo !== false);
 
-        toast.error(`Stock bajo: ${listaNombres}`, {
-          duration: 10000,
-          icon: <AlertTriangle className="text-red-500" size={20} />,
-          style: {
-            borderRadius: '12px',
-            fontSize: '13px',
-            fontWeight: 'bold',
-            maxWidth: '450px',
-            border: '1px solid #fee2e2'
-          }
-        });
+        if (criticos.length > 0) {
+          const listaNombres = criticos.map(p => p.nombre).join(', ');
+          toast.error(`Stock bajo: ${listaNombres}`, {
+            duration: 10000,
+            icon: <AlertTriangle className="text-red-500" size={20} />,
+            style: {
+              borderRadius: '12px',
+              fontSize: '13px',
+              fontWeight: 'bold',
+              maxWidth: '450px',
+              border: '1px solid #fee2e2'
+            }
+          });
+          // Marcamos que ya se mostró en esta sesión
+          sessionStorage.setItem('stockAlertaMostrada', 'true');
+        }
+      } catch (error) {
+        console.error("Error al verificar stock", error);
       }
-    } catch (error) {
-      console.error("Error al verificar stock", error);
-    }
-  };
+    };
 
   // --- LÓGICA DE CERRAR SESIÓN ---
   const handleLogout = () => {

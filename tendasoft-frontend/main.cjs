@@ -16,7 +16,6 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
-    // --- CAMBIO AQUÍ: ICONO DE LA APLICACIÓN ---
     icon: path.join(__dirname, 'src/logo-tendasoft.png'),
     webPreferences: {
       nodeIntegration: false,

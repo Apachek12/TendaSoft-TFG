@@ -107,9 +107,7 @@ public class DataInitializer implements CommandLineRunner {
                     .orElseThrow(() -> new RuntimeException("Admin no encontrado"));
 
             Venta ancla = new Venta();
-            ancla.setNumeroFactura("FAC-2026-0006");  // <-- última factura aceptada por la AEAT
-
-
+            ancla.setNumeroFactura("FAC-2026-0034");
             ancla.setFecha(LocalDateTime.of(2026, 4, 24, 14, 55, 28));
             ancla.setTotal(new BigDecimal("1.50"));
             ancla.setBaseImponibleTotal(new BigDecimal("1.24"));
@@ -118,7 +116,7 @@ public class DataInitializer implements CommandLineRunner {
             ancla.setMetodoPago("EFECTIVO");
             ancla.setUsuario(admin);
             // Hash de FAC-2026-0004, aceptada como Correcto por la AEAT
-            ancla.setHashVerifactu("FBC909774D4939B39662070CC7642DCBD544B04772EC28145EC5079B56FC244E");
+            ancla.setHashVerifactu("6E2E23BC818B2217DAF31014FA6044FE4C0B6B7611A71A3BEABBE234E3BA9150");
             ancla.setHashAnterior("");
             ancla.setEstadoVerifactu("CORRECTO");
             // Campos de encadenamiento — esta es la primera de la cadena
