@@ -5,7 +5,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 
-import java.util.HashMap;
 import java.util.Map;
 
 @ControllerAdvice
@@ -13,15 +12,11 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<Map<String, String>> manejarEstadoIlegal(IllegalStateException ex) {
-        Map<String, String> respuesta = new HashMap<>();
-        respuesta.put("error", ex.getMessage());
-        return new ResponseEntity<>(respuesta, HttpStatus.BAD_REQUEST); // Error 400 en vez de 500
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", ex.getMessage()));
     }
 
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Map<String, String>> manejarRuntime(RuntimeException ex) {
-        Map<String, String> respuesta = new HashMap<>();
-        respuesta.put("error", ex.getMessage());
-        return new ResponseEntity<>(respuesta, HttpStatus.NOT_FOUND);
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", ex.getMessage()));
     }
 }

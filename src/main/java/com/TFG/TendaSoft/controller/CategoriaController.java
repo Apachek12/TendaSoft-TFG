@@ -16,7 +16,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/categorias")
-@CrossOrigin(origins = "*")
 @RequiredArgsConstructor
 public class CategoriaController {
 
@@ -44,19 +43,13 @@ public class CategoriaController {
             @PathVariable Integer id,
             @RequestBody Categoria categoriaDetails) {
 
-        // 1. Buscamos la categoría existente
         Categoria categoria = categoriaRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Categoría no encontrada con ID: " + id));
 
-        // 2. Actualizamos el nombre
         categoria.setNombre(categoriaDetails.getNombre());
-
-        // 3. Actualizamos el padre (si es que ahora es subcategoría o ha cambiado de padre)
         categoria.setCategoriaPadre(categoriaDetails.getCategoriaPadre());
 
-        // 4. Guardamos
-        Categoria categoriaActualizada = categoriaRepository.save(categoria);
-        return ResponseEntity.ok(categoriaActualizada);
+        return ResponseEntity.ok(categoriaRepository.save(categoria));
     }
 
     @DeleteMapping("/{id}")
@@ -75,21 +68,14 @@ public class CategoriaController {
             Categoria categoria = categoriaRepository.findById(id)
                     .orElseThrow(() -> new RuntimeException("Categoría no encontrada"));
 
-            // Buscamos los productos por la lista de códigos recibida
-            List<Producto> productosAAñadir = productoRepository.findAllById(dto.getCodigosBarras());
+            List<Producto> productos = productoRepository.findAllById(dto.getCodigosBarras());
 
-            if (productosAAñadir.isEmpty()) {
+            if (productos.isEmpty()) {
                 return ResponseEntity.badRequest().body("No se seleccionaron productos válidos.");
             }
 
-            // Actualizamos la relación en cada producto
-            for (Producto p : productosAAñadir) {
-                p.setCategoria(categoria);
-            }
-
-            // Al estar bajo @Transactional y haber seteado la categoría en los productos,
-            // Hibernate guardará los cambios automáticamente al terminar el método.
-            productoRepository.saveAll(productosAAñadir);
+            productos.forEach(p -> p.setCategoria(categoria));
+            productoRepository.saveAll(productos);
 
             return ResponseEntity.ok("Productos importados correctamente a " + categoria.getNombre());
 

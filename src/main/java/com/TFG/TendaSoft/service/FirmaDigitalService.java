@@ -8,8 +8,14 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
 import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.transform.OutputKeys;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
 import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
+import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyStore;
 import java.security.PrivateKey;
@@ -34,16 +40,11 @@ public class FirmaDigitalService {
                 ks.load(fis, password.toCharArray());
             }
 
-            String alias = ks.aliases().nextElement();
-            PrivateKey privateKey = (PrivateKey) ks.getKey(alias, password.toCharArray());
+            String alias         = ks.aliases().nextElement();
+            PrivateKey key       = (PrivateKey) ks.getKey(alias, password.toCharArray());
             X509Certificate cert = (X509Certificate) ks.getCertificate(alias);
 
             Element root = doc.getDocumentElement();
-
-            // FIX: setAttribute() sola no registra el atributo como tipo ID en el DOM.
-            // Apache Santuario usa doc.getElementById() internamente para resolver "#root",
-            // y ese método solo funciona si el atributo está declarado como ID con
-            // setIdAttribute(). Sin esta línea el resolver lanza ReferenceNotInitializedException.
             root.setAttribute("Id", "root");
             root.setIdAttribute("Id", true);
 
@@ -52,29 +53,17 @@ public class FirmaDigitalService {
 
             Transforms transforms = new Transforms(doc);
             transforms.addTransform(Transforms.TRANSFORM_ENVELOPED_SIGNATURE);
-            // FIX: Añadir canonicalización exclusiva (exc-c14n) para que la firma
-            // sea estable cuando el XML se inserta dentro del SOAP envelope,
-            // evitando que los namespaces heredados del envelope la invaliden.
             transforms.addTransform(Transforms.TRANSFORM_C14N_EXCL_OMIT_COMMENTS);
 
-            // FIX: Referenciar solo el elemento raíz por su ID, no todo el documento
             sig.addDocument("#root", transforms, "http://www.w3.org/2001/04/xmlenc#sha256");
-
             sig.addKeyInfo(cert);
-            sig.sign(privateKey);
+            sig.sign(key);
 
-            javax.xml.transform.TransformerFactory tf = javax.xml.transform.TransformerFactory.newInstance();
-            javax.xml.transform.Transformer transformer = tf.newTransformer();
+            Transformer transformer = TransformerFactory.newInstance().newTransformer();
+            transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes");
 
-            // Omitir el prólogo XML — se añade manualmente al construir el SOAP envelope
-            transformer.setOutputProperty(javax.xml.transform.OutputKeys.OMIT_XML_DECLARATION, "yes");
-
-            java.io.StringWriter writer = new java.io.StringWriter();
-            transformer.transform(
-                    new javax.xml.transform.dom.DOMSource(doc),
-                    new javax.xml.transform.stream.StreamResult(writer)
-            );
-
+            StringWriter writer = new StringWriter();
+            transformer.transform(new DOMSource(doc), new StreamResult(writer));
             return writer.toString();
 
         } catch (Exception e) {

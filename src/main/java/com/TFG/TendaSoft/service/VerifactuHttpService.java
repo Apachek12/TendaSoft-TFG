@@ -1,5 +1,6 @@
 package com.TFG.TendaSoft.service;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.hc.client5.http.classic.methods.HttpPost;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
@@ -17,14 +18,14 @@ import org.springframework.stereotype.Service;
 import javax.net.ssl.SSLContext;
 import java.io.File;
 import java.io.FileInputStream;
-import java.security.KeyStore;
 import java.nio.charset.StandardCharsets;
+import java.security.KeyStore;
 
+@Slf4j
 @Service
 public class VerifactuHttpService {
 
     public String enviarFacturaAEAT(String xmlFirmado, String rutaCert, String passCert) throws Exception {
-
         // 1. Cargar el certificado .p12 (KeyStore)
         KeyStore keyStore = KeyStore.getInstance("PKCS12");
         try (FileInputStream instream = new FileInputStream(new File(rutaCert))) {
@@ -36,7 +37,7 @@ public class VerifactuHttpService {
                 .loadKeyMaterial(keyStore, passCert.toCharArray())
                 .build();
 
-        // 3. Crear la factoría de sockets SSL
+        // 3. Crear sockets SSL
         SSLConnectionSocketFactory sslSocketFactory = SSLConnectionSocketFactoryBuilder.create()
                 .setSslContext(sslContext)
                 .build();
@@ -46,24 +47,18 @@ public class VerifactuHttpService {
                 .setSSLSocketFactory(sslSocketFactory)
                 .build();
 
-        // 5. Construir el cliente HTTP
-        try (CloseableHttpClient httpClient = HttpClients.custom()
-                .setConnectionManager(cm)
-                .build()) {
-
+        // 5. Construir el cliente HTTP y enviar
+        try (CloseableHttpClient httpClient = HttpClients.custom().setConnectionManager(cm).build()) {
             String urlAeat = "https://prewww1.aeat.es/wlpl/TIKE-CONT/ws/SistemaFacturacion/VerifactuSOAP";
             HttpPost post = new HttpPost(urlAeat);
             post.setHeader("SOAPAction", "");
 
-            // Limpiar prólogo XML para evitar doble declaración dentro del SOAP envelope
+            // Limpiamos el prólogo XML para evitar doble declaración dentro del SOAP envelope
             String xmlLimpio = xmlFirmado
                     .replace("<?xml version=\"1.0\" encoding=\"UTF-8\"?>", "")
                     .replace("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>", "")
                     .trim();
 
-            // Construcción del SOAP Envelope.
-            // Los namespaces van en el Envelope raíz tal como exige la AEAT
-            // (estructura confirmada oficialmente):
             String soapEnvelope =
                     "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
                             "<soapenv:Envelope\n" +
@@ -77,25 +72,13 @@ public class VerifactuHttpService {
                             "  </soapenv:Body>\n" +
                             "</soapenv:Envelope>";
 
-            System.out.println("===============================================");
-            System.out.println("SOAP ENVELOPE QUE SE ENVÍA A LA AEAT:");
-            System.out.println("===============================================");
-            System.out.println(soapEnvelope);
-            System.out.println("===============================================");
-
             post.setEntity(new StringEntity(soapEnvelope, ContentType.create("text/xml", StandardCharsets.UTF_8)));
 
-            // 6. Ejecutar y loguear la respuesta
+            // 6. Ejecutar y devolver la respuesta
             try (CloseableHttpResponse response = httpClient.execute(post)) {
-                String respuestaHacienda = EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8);
-
-                System.out.println("===============================================");
-                System.out.println("RESPUESTA OFICIAL DE LA AEAT:");
-                System.out.println("===============================================");
-                System.out.println(respuestaHacienda);
-                System.out.println("===============================================");
-
-                return respuestaHacienda;
+                String respuesta = EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8);
+                log.debug("Respuesta AEAT recibida (longitud: {} chars)", respuesta.length());
+                return respuesta;
             }
         }
     }

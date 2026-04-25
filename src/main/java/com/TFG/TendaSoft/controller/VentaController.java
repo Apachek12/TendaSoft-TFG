@@ -1,6 +1,7 @@
 package com.TFG.TendaSoft.controller;
 
 import com.TFG.TendaSoft.dto.VentaListadoDTO;
+import com.TFG.TendaSoft.dto.EstadisticasDTO;
 import com.TFG.TendaSoft.model.LineaVenta;
 import com.TFG.TendaSoft.model.Venta;
 import com.TFG.TendaSoft.service.VentaService;
@@ -14,13 +15,11 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/ventas")
-@CrossOrigin(origins = "*")
 @RequiredArgsConstructor
 public class VentaController {
 
     private final VentaService ventaService;
 
-    // DTO para recibir la petición desde React o Postman
     @Data
     public static class VentaRequest {
         private Venta venta;
@@ -43,20 +42,10 @@ public class VentaController {
     @PostMapping("/reintentar/{id}")
     public ResponseEntity<?> reintentarVerifactu(@PathVariable Long id) {
         try {
-            Venta ventaActualizada = ventaService.reintentarTramiteVerifactu(id);
-            return ResponseEntity.ok(ventaActualizada);
+            return ResponseEntity.ok(ventaService.reintentarTramiteVerifactu(id));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
         }
-    }
-
-    @GetMapping("/historial")
-    public ResponseEntity<List<VentaListadoDTO>> listarVentasHistorial(
-            @RequestParam(name = "año") Integer año,
-            @RequestParam(name = "mes", required = false) Integer mes,
-            @RequestParam(name = "dia", required = false) Integer dia) {
-
-        return ResponseEntity.ok(ventaService.obtenerVentasPorPeriodo(año, mes, dia));
     }
 
     @GetMapping("/periodo")
@@ -64,8 +53,14 @@ public class VentaController {
             @RequestParam Integer año,
             @RequestParam(required = false) Integer mes,
             @RequestParam(required = false) Integer dia) {
+        return ResponseEntity.ok(ventaService.obtenerVentasPorPeriodo(año, mes, dia));
+    }
 
-        List<VentaListadoDTO> ventas = ventaService.obtenerVentasPorPeriodo(año, mes, dia);
-        return ResponseEntity.ok(ventas);
+    @GetMapping("/estadisticas")
+    public ResponseEntity<EstadisticasDTO> obtenerEstadisticas(
+            @RequestParam Integer año,
+            @RequestParam(required = false) Integer mes,
+            @RequestParam(required = false) Integer dia) {
+        return ResponseEntity.ok(ventaService.obtenerEstadisticasDePeriodo(año, mes, dia));
     }
 }

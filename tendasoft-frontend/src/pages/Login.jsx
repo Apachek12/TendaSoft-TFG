@@ -2,53 +2,42 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
+const API = 'http://localhost:8080';
+
 export default function Login() {
-  const [usuario, setUsuario] = useState('');
-  const [contrasena, setContrasena] = useState('');
-  const [error, setError] = useState(''); // Estado para guardar el mensaje de error
-  const [cargando, setCargando] = useState(false); // Estado para saber si estamos esperando al servidor
   const navigate = useNavigate();
+
+  const [usuario, setUsuario]     = useState('');
+  const [contrasena, setContrasena] = useState('');
+  const [error, setError]         = useState('');
+  const [cargando, setCargando]   = useState(false);
 
   const handleLogin = async (e) => {
     e.preventDefault();
-
-    // 1. Limpiamos errores previos antes de intentar de nuevo
     setError('');
 
-    // 2. Validación básica en el frontend
     if (!usuario || !contrasena) {
       setError('Por favor, rellena todos los campos.');
       return;
     }
 
     setCargando(true);
-
     try {
-      const response = await axios.post('http://localhost:8080/api/usuarios/login', {
+      const { data } = await axios.post(`${API}/api/usuarios/login`, {
         nombreUsuario: usuario,
-        contrasena: contrasena
+        contrasena
       });
-
-      // 4. Si el servidor responde 200 OK, guardamos los datos del usuario en memoria local
-      // Placeholder
-      localStorage.setItem('usuarioTendaSoft', JSON.stringify(response.data));
-
-      // 5. Redirigimos al Dashboard
+      localStorage.setItem('usuarioTendaSoft', JSON.stringify(data));
       navigate('/dashboard');
-
     } catch (err) {
-      // 6. Si el servidor devuelve un error (401, 404, 500...), lo capturamos aquí
-      if (err.response) {
-        if (err.response.status === 401) {
-          setError('Usuario o contraseña incorrectos.');
-        } else if (err.response.status === 404) {
-          setError('El usuario no existe en el sistema.');
-        } else {
-          setError('Error interno del servidor.');
-        }
+      if (err.response?.status === 401) {
+        setError('Usuario o contraseña incorrectos.');
+      } else if (err.response?.status === 404) {
+        setError('El usuario no existe en el sistema.');
+      } else if (err.response) {
+        setError('Error interno del servidor.');
       } else {
-        // Si el servidor está apagado o no hay internet
-        setError('No se pudo conectar con la base de datos.');
+        setError('No se pudo conectar con el servidor.');
       }
     } finally {
       setCargando(false);
@@ -58,8 +47,7 @@ export default function Login() {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col justify-center items-center">
       <div className="mb-8">
-
-        <img src="/src/logo-tendasoft.png" alt="TendaSoft Logo" className="w-24 h-24" />
+        <img src="/src/logo-tendasoft.png" alt="TendaSoft" className="w-24 h-24" />
       </div>
 
       <div className="bg-white p-10 rounded-2xl shadow-sm w-full max-w-md border border-gray-100">
@@ -68,7 +56,7 @@ export default function Login() {
             type="text"
             placeholder="Usuario"
             value={usuario}
-            onChange={(e) => setUsuario(e.target.value)}
+            onChange={e => setUsuario(e.target.value)}
             disabled={cargando}
             className="w-full bg-gray-200 text-gray-700 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:opacity-50"
           />
@@ -76,12 +64,11 @@ export default function Login() {
             type="password"
             placeholder="Contraseña"
             value={contrasena}
-            onChange={(e) => setContrasena(e.target.value)}
+            onChange={e => setContrasena(e.target.value)}
             disabled={cargando}
             className="w-full bg-gray-200 text-gray-700 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:opacity-50"
           />
 
-          {/* Bloque condicional: Solo se pinta si la variable 'error' tiene algún texto */}
           {error && (
             <div className="bg-red-50 text-red-500 text-sm text-center p-3 rounded-lg border border-red-100">
               {error}

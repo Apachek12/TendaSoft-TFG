@@ -3,6 +3,7 @@ package com.TFG.TendaSoft.model;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -20,6 +21,15 @@ public class Venta {
     @Column(nullable = false)
     private LocalDateTime fecha;
 
+    @Column(name = "numero_factura", length = 50, unique = true, nullable = false)
+    private String numeroFactura;
+
+    @Column(name = "tipo_factura", length = 2, nullable = false)
+    private String tipoFactura;
+
+    @Column(name = "metodo_pago", length = 20, nullable = false)
+    private String metodoPago;
+
     @Column(precision = 10, scale = 2, nullable = false)
     private BigDecimal total;
 
@@ -29,20 +39,16 @@ public class Venta {
     @Column(name = "cuota_iva_total", precision = 10, scale = 2, nullable = false)
     private BigDecimal cuotaIvaTotal;
 
-    @Column(name = "tipo_factura", length = 2, nullable = false)
-    private String tipoFactura;
-
     @Column(name = "nif_cliente", length = 15)
     private String nifCliente;
 
     @Column(name = "nombre_cliente", length = 150)
     private String nombreCliente;
 
-    @Column(name = "metodo_pago", length = 20, nullable = false)
-    private String metodoPago;
+    // ── VeriFactu ────────────────────────────────────────────────────────────
 
-    @Column(name = "numero_factura", length = 50, unique = true, nullable = false)
-    private String numeroFactura;
+    @Column(name = "estado_verifactu", length = 50, nullable = false)
+    private String estadoVerifactu;
 
     @Column(name = "hash_verifactu", length = 64, nullable = false)
     private String hashVerifactu;
@@ -50,25 +56,20 @@ public class Venta {
     @Column(name = "hash_anterior", length = 64)
     private String hashAnterior;
 
-    @Column(name = "estado_verifactu", length = 50, nullable = false)
-    private String estadoVerifactu;
-
-    // --- Campos para el encadenamiento VeriFactu ---
-    // Número de factura del registro anterior en la cadena
     @Column(name = "numero_factura_anterior", length = 50)
     private String numeroFacturaAnterior;
 
-    // Fecha de expedición de la factura anterior
     @Column(name = "fecha_anterior")
     private LocalDateTime fechaAnterior;
 
-    // NIF del emisor de la factura anterior (normalmente el mismo negocio)
     @Column(name = "cif_emisor_anterior", length = 15)
     private String cifEmisorAnterior;
 
-    // XML firmado guardado para poder reenviar sin regenerar ni romper el hash
+    // XML firmado para reenvíos sin regenerar el hash
     @Column(name = "xml_firmado", columnDefinition = "TEXT")
     private String xmlFirmado;
+
+    // ── Relaciones ───────────────────────────────────────────────────────────
 
     @ManyToOne
     @JoinColumn(name = "Usuariosid_usuario", nullable = false)

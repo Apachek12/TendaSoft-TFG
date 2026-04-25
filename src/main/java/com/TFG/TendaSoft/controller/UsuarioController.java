@@ -1,23 +1,26 @@
 package com.TFG.TendaSoft.controller;
 
+import com.TFG.TendaSoft.dto.UsuarioDTO;
 import com.TFG.TendaSoft.model.Usuario;
 import com.TFG.TendaSoft.repository.UsuarioRepository;
 import com.TFG.TendaSoft.service.UsuarioService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/usuarios")
-@CrossOrigin(origins = "*")
 @RequiredArgsConstructor
 public class UsuarioController {
 
     private final UsuarioService usuarioService;
     private final UsuarioRepository usuarioRepository;
+    private final PasswordEncoder passwordEncoder;
 
     @GetMapping
     public ResponseEntity<List<Usuario>> obtenerTodos() {
@@ -34,7 +37,6 @@ public class UsuarioController {
         return new ResponseEntity<>(usuarioService.crearUsuario(usuario), HttpStatus.CREATED);
     }
 
-    // --- ACTUALIZAR USUARIO ---
     @PutMapping("/{id}")
     public ResponseEntity<?> actualizarUsuario(@PathVariable Integer id, @RequestBody Usuario datosActualizados) {
         return usuarioRepository.findById(id).map(usuario -> {
@@ -42,50 +44,51 @@ public class UsuarioController {
             usuario.setNombreUsuario(datosActualizados.getNombreUsuario());
             usuario.setRol(datosActualizados.getRol());
 
-            // Solo actualizamos contraseña si se envía una nueva
+            // Solo actualizamos la contraseña si se envía una nueva (y la hasheamos)
             if (datosActualizados.getHashContrasena() != null && !datosActualizados.getHashContrasena().isEmpty()) {
-                usuario.setHashContrasena(datosActualizados.getHashContrasena());
+                usuario.setHashContrasena(passwordEncoder.encode(datosActualizados.getHashContrasena()));
             }
 
-            usuarioRepository.save(usuario);
-            return ResponseEntity.ok(usuario);
+            return ResponseEntity.ok(usuarioRepository.save(usuario));
         }).orElse(ResponseEntity.notFound().build());
     }
 
+    // Soft delete: alterna el estado activo/inactivo del usuario
     @DeleteMapping("/{id}")
     public ResponseEntity<?> toggleEstadoUsuario(@PathVariable Integer id) {
         return usuarioRepository.findById(id).map(usuario -> {
-            // Leemos el estado actual (si es null por algún motivo, asumimos que era true)
             boolean estadoActual = usuario.getActivo() != null ? usuario.getActivo() : true;
-
-            // Lo invertimos: si era true pasa a false, y si era false pasa a true
             usuario.setActivo(!estadoActual);
-
             usuarioRepository.save(usuario);
             return ResponseEntity.ok().build();
         }).orElse(ResponseEntity.notFound().build());
     }
 
+    // Devuelve un DTO sin hashContrasena para no exponer datos sensibles al frontend
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody java.util.Map<String, String> credenciales) {
+    public ResponseEntity<?> login(@RequestBody Map<String, String> credenciales) {
         String username = credenciales.get("nombreUsuario");
         String password = credenciales.get("contrasena");
 
         try {
-            // Buscamos el usuario en la base de datos
-            Usuario usuario = usuarioService.buscarPorUsername(username);
-
-            // TODO encriptar
-            if (usuario != null && usuario.getActivo() == true && usuario.getHashContrasena().equals(password)) {
-                // Login correcto: devolvemos el usuario completo (incluyendo su rol ADMIN o VENDEDOR)
-                return ResponseEntity.ok(usuario);
-            } else {
-                // Login incorrecto: error 401
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Contraseña incorrecta");
-            }
+            Usuario usuario = usuarioService.autenticar(username, password);
+            return ResponseEntity.ok(toDTO(usuario));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(e.getMessage());
         } catch (Exception e) {
-            // Si el buscarPorUsername lanza un error porque no lo encuentra: error 404
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("El usuario no existe");
         }
+    }
+
+    private UsuarioDTO toDTO(Usuario u) {
+        return UsuarioDTO.builder()
+                .idUsuario(u.getIdUsuario())
+                .nombreReal(u.getNombreReal())
+                .nombreUsuario(u.getNombreUsuario())
+                .rol(u.getRol())
+                .activo(u.getActivo())
+                .build();
     }
 }

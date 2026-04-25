@@ -13,7 +13,6 @@ import java.math.BigDecimal;
 
 @RestController
 @RequestMapping("/api/caja")
-@CrossOrigin(origins = "*")
 @RequiredArgsConstructor
 public class CierreCajaController {
 
@@ -27,19 +26,17 @@ public class CierreCajaController {
 
     @Data
     public static class CierreRequest {
-        // El JSON debe incluir el ID del usuario que quiere cerrar
         private Integer idUsuario;
         private BigDecimal dineroFisicoContado;
     }
 
     @PostMapping("/abrir")
     public ResponseEntity<CierreCaja> abrirCaja(@RequestBody AperturaRequest peticion) {
-        // No deja abrir si ya hay una caja abierta
         CierreCaja caja = cierreCajaService.abrirCaja(peticion.getFondoInicial(), peticion.getUsuario());
         return new ResponseEntity<>(caja, HttpStatus.CREATED);
     }
 
-    @PostMapping("/cerrar") // Quitamos el /{idCierre} de aquí
+    @PostMapping("/cerrar")
     public ResponseEntity<CierreCaja> cerrarCaja(@RequestBody CierreRequest peticion) {
         CierreCaja cajaCerrada = cierreCajaService.cerrarCaja(
                 peticion.getIdUsuario(),
@@ -50,8 +47,7 @@ public class CierreCajaController {
 
     @GetMapping("/estado/{idUsuario}")
     public ResponseEntity<CierreCaja> obtenerEstado(@PathVariable Integer idUsuario) {
-        CierreCaja caja = cierreCajaService.obtenerCajaAbierta(idUsuario);
-        return ResponseEntity.ok(caja); // Devuelve la caja si está abierta, o 'null' si está cerrada
+        return ResponseEntity.ok(cierreCajaService.obtenerCajaAbierta(idUsuario));
     }
 
     @GetMapping("/resumen/{idUsuario}")

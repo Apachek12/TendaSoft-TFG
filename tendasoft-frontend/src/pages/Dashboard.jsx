@@ -1,154 +1,114 @@
-import React, { useState, useEffect, useRef } from 'react'; // 1. Añadimos useRef
-import Topbar from './Topbar';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Lock, MonitorSmartphone, Package, Users, LogOut, AlertTriangle } from 'lucide-react';
 import { toast, Toaster } from 'react-hot-toast';
+import Topbar from './Topbar';
 import './Avisos.css';
 
-export default function Dashboard() {
-  const navigate = useNavigate();
-  const [usuario, setUsuario] = useState(null);
+const API = 'http://localhost:8080';
 
-  // BANDERA DE CONTROL: Evita que el toast salga dos veces en el montaje
+export default function Dashboard() {
+  const navigate      = useNavigate();
+  const [usuario, setUsuario] = useState(null);
+  // Ref para evitar que el toast de stock se lance dos veces en el montaje en StrictMode
   const toastLanzado = useRef(false);
 
   useEffect(() => {
     const datosGuardados = localStorage.getItem('usuarioTendaSoft');
-    if (datosGuardados) {
-      setUsuario(JSON.parse(datosGuardados));
+    if (!datosGuardados) { navigate('/'); return; }
 
-      // Solo ejecutamos la verificación si no se ha lanzado ya el toast en este montaje
-      if (!toastLanzado.current) {
-        verificarStock();
-        toastLanzado.current = true; // Bloqueamos futuros lanzamientos
-      }
-    } else {
-      navigate('/');
+    setUsuario(JSON.parse(datosGuardados));
+
+    if (!toastLanzado.current) {
+      verificarStock();
+      toastLanzado.current = true;
     }
   }, [navigate]);
 
+  // Muestra un aviso si hay productos con stock bajo. Solo una vez por sesión de navegador.
   const verificarStock = async () => {
-      // Si ya se mostró en esta sesión, no volver a mostrar
-      if (sessionStorage.getItem('stockAlertaMostrada')) return;
-
-      try {
-        const response = await axios.get('http://localhost:8080/api/productos');
-        const criticos = response.data.filter(p => p.unidades < 50 && p.activo !== false);
-
-        if (criticos.length > 0) {
-          const listaNombres = criticos.map(p => p.nombre).join(', ');
-          toast.error(`Stock bajo: ${listaNombres}`, {
-            duration: 10000,
-            icon: <AlertTriangle className="text-red-500" size={20} />,
-            style: {
-              borderRadius: '12px',
-              fontSize: '13px',
-              fontWeight: 'bold',
-              maxWidth: '450px',
-              border: '1px solid #fee2e2'
-            }
-          });
-          // Marcamos que ya se mostró en esta sesión
-          sessionStorage.setItem('stockAlertaMostrada', 'true');
-        }
-      } catch (error) {
-        console.error("Error al verificar stock", error);
+    if (sessionStorage.getItem('stockAlertaMostrada')) return;
+    try {
+      const { data } = await axios.get(`${API}/api/productos`);
+      const criticos = data.filter(p => p.unidades < 50 && p.activo !== false);
+      if (criticos.length > 0) {
+        toast.error(`Stock bajo: ${criticos.map(p => p.nombre).join(', ')}`, {
+          duration: 10000,
+          icon: <AlertTriangle className="text-red-500" size={20} />,
+          style: { borderRadius: '12px', fontSize: '13px', fontWeight: 'bold', maxWidth: '450px', border: '1px solid #fee2e2' }
+        });
+        sessionStorage.setItem('stockAlertaMostrada', 'true');
       }
-    };
+    } catch (err) {
+      console.error('Error al verificar stock:', err);
+    }
+  };
 
-  // --- LÓGICA DE CERRAR SESIÓN ---
   const handleLogout = () => {
     toast((t) => (
       <div className="p-6 flex flex-col items-center text-center gap-4">
         <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center text-red-600">
           <LogOut size={28} />
         </div>
-        <div>
-          <h3 className="text-lg font-black text-slate-800 tracking-tight uppercase">¿Cerrar Sesión?</h3>
-        </div>
+        <h3 className="text-lg font-black text-slate-800 tracking-tight uppercase">¿Cerrar Sesión?</h3>
         <div className="flex w-full gap-3 mt-2">
-          <button onClick={() => toast.dismiss(t.id)} className="flex-1 px-4 py-3 bg-slate-100 text-slate-500 text-xs font-black rounded-xl hover:bg-slate-200 uppercase tracking-widest transition-colors">
+          <button
+            onClick={() => toast.dismiss(t.id)}
+            className="flex-1 px-4 py-3 bg-slate-100 text-slate-500 text-xs font-black rounded-xl hover:bg-slate-200 uppercase tracking-widest transition-colors"
+          >
             Cancelar
           </button>
           <button
-            onClick={() => {
-              toast.dismiss(t.id);
-              localStorage.removeItem('usuarioTendaSoft');
-              navigate('/');
-            }}
+            onClick={() => { toast.dismiss(t.id); localStorage.removeItem('usuarioTendaSoft'); navigate('/'); }}
             className="flex-1 px-4 py-3 bg-red-600 text-white text-xs font-black rounded-xl hover:bg-red-700 uppercase tracking-widest shadow-lg shadow-red-200 transition-all"
           >
             Confirmar
           </button>
         </div>
       </div>
-    ), {
-      duration: Infinity,
-      position: 'top-center',
-      className: 'toast-confirmacion-centro'
-    });
+    ), { duration: Infinity, position: 'top-center', className: 'toast-confirmacion-centro' });
   };
 
   if (!usuario) return null;
 
-  const MenuCard = ({ icon, title, onClick }) => (
-    <button
-      onClick={onClick}
-      className="bg-white flex flex-col items-center justify-center p-12 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md hover:border-blue-100 transition-all aspect-[4/3] group"
-    >
-      <div className="mb-6 p-4 rounded-full bg-slate-50 group-hover:scale-110 transition-transform">
-        {icon}
-      </div>
-      <span className="text-gray-700 font-bold text-xs tracking-widest uppercase">{title}</span>
-    </button>
-  );
-
   const esAdmin = usuario.rol === 'ADMIN';
+
+  const menuItems = [
+    { icon: <Lock className="w-12 h-12 text-orange-400" />,         title: 'APERTURA Y CIERRE DE CAJA', ruta: '/cierre-caja' },
+    { icon: <MonitorSmartphone className="w-12 h-12 text-blue-500" />, title: 'CAJA (TPV)',               ruta: '/caja'        },
+    ...(esAdmin ? [
+      { icon: <Package className="w-12 h-12 text-slate-600" />, title: 'INVENTARIO', ruta: '/inventario' },
+      { icon: <Users className="w-12 h-12 text-teal-600" />,   title: 'USUARIOS',   ruta: '/usuarios'   }
+    ] : [])
+  ];
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans antialiased">
-      <Toaster
-        position="top-right"
-        containerStyle={{ top: 65 }}
-      />
-
+      <Toaster position="top-right" containerStyle={{ top: 65 }} />
       <Topbar rol={usuario.rol} />
 
       <div className="flex-1 flex flex-col items-center justify-center p-8">
-        <div className={`grid gap-8 w-full ${esAdmin ? 'max-w-4xl grid-cols-2' : 'max-w-2xl grid-cols-2'}`}>
-          <MenuCard
-            icon={<Lock className="w-12 h-12 text-orange-400" />}
-            title="APERTURA Y CIERRE DE CAJA"
-            onClick={() => navigate('/cierre-caja')}
-          />
-          <MenuCard
-            icon={<MonitorSmartphone className="w-12 h-12 text-blue-500" />}
-            title="CAJA (TPV)"
-            onClick={() => navigate('/caja')}
-          />
-          {esAdmin && (
-            <>
-              <MenuCard
-                icon={<Package className="w-12 h-12 text-slate-600" />}
-                title="INVENTARIO"
-                onClick={() => navigate('/inventario')}
-              />
-              <MenuCard
-                icon={<Users className="w-12 h-12 text-teal-600" />}
-                title="USUARIOS"
-                onClick={() => navigate('/usuarios')}
-              />
-            </>
-          )}
+        <div className={`grid gap-8 w-full grid-cols-2 ${esAdmin ? 'max-w-4xl' : 'max-w-2xl'}`}>
+          {menuItems.map(({ icon, title, ruta }) => (
+            <button
+              key={ruta}
+              onClick={() => navigate(ruta)}
+              className="bg-white flex flex-col items-center justify-center p-12 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md hover:border-blue-100 transition-all aspect-[4/3] group"
+            >
+              <div className="mb-6 p-4 rounded-full bg-slate-50 group-hover:scale-110 transition-transform">
+                {icon}
+              </div>
+              <span className="text-gray-700 font-bold text-xs tracking-widest uppercase">{title}</span>
+            </button>
+          ))}
         </div>
 
         <button
           onClick={handleLogout}
           className="mt-10 flex items-center gap-3 px-6 py-3 bg-white border border-red-100 text-red-500 rounded-2xl font-bold text-[10px] tracking-widest uppercase hover:bg-red-50 transition-all shadow-sm active:scale-95"
         >
-          <LogOut size={18} />
-          Cerrar Sesión
+          <LogOut size={18} /> Cerrar Sesión
         </button>
       </div>
     </div>

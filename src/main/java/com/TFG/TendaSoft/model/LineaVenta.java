@@ -3,6 +3,7 @@ package com.TFG.TendaSoft.model;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+
 import java.math.BigDecimal;
 
 @Entity
@@ -19,7 +20,7 @@ public class LineaVenta {
     private String nombreProducto;
 
     @Column(name = "precio_unitario", precision = 10, scale = 2, nullable = false)
-    private BigDecimal precioUnitario; // Sin IVA
+    private BigDecimal precioUnitario;
 
     @Column(nullable = false)
     private Integer cantidad;
@@ -29,13 +30,12 @@ public class LineaVenta {
 
     @Column(name = "importe_iva", precision = 10, scale = 2, nullable = false)
     private BigDecimal importeIva;
-    // ------------------------------------
 
-    @ManyToOne (fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "Productoscodigo_barras", nullable = false)
     private Producto producto;
 
-    @ManyToOne (fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "Ventaid", nullable = false)
     private Venta venta;
 }

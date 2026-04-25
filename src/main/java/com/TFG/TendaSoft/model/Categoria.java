@@ -1,10 +1,11 @@
 package com.TFG.TendaSoft.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+
+import java.util.List;
 
 @Entity
 @Table(name = "categorias")
@@ -22,12 +23,12 @@ public class Categoria {
     @Column(nullable = false)
     private Integer orden;
 
-    @ManyToOne (fetch = FetchType.LAZY)
+    // Subcategorías
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "Categoriasid")
     private Categoria categoriaPadre;
 
-
     @OneToMany(mappedBy = "categoria", fetch = FetchType.LAZY)
     @JsonManagedReference
-    private java.util.List<Producto> productos;
+    private List<Producto> productos;
 }

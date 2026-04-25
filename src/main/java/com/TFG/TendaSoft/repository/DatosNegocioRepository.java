@@ -7,8 +7,7 @@ import org.springframework.stereotype.Repository;
 import java.util.Optional;
 
 @Repository
-public interface DatosNegocioRepository extends JpaRepository<DatosNegocio, Integer> { // o Long, según tu ID
+public interface DatosNegocioRepository extends JpaRepository<DatosNegocio, Integer> {
 
-    // Busca el primer registro ordenado por ID. ¡Ideal para configuraciones únicas!
     Optional<DatosNegocio> findTopByOrderByIdAsc();
 }

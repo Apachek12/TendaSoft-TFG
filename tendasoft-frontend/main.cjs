@@ -2,7 +2,7 @@ const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
-const { exec } = require('child_process'); // Usaremos esto para hablar con Windows
+const { exec } = require('child_process');
 
 // Importamos la librería de la impresora térmica
 const ThermalPrinter = require("node-thermal-printer").printer;
@@ -13,23 +13,30 @@ console.log("1. Iniciando el motor de Electron...");
 let mainWindow;
 
 function createWindow() {
+  // 1. Creamos la ventana con "show: false" para que nazca invisible
   mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
-    icon: path.join(__dirname, 'src/logo-tendasoft.png'),
+    width: 1024,
+    height: 768,
+    show: false,           // Nace oculta
+    autoHideMenuBar: true, // Oculta el menú superior (Archivo, Editar...) para que parezca más una app nativa
+    icon: path.join(__dirname, '/src/logo-tendasoft.png'),
     webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
-      preload: path.join(__dirname, 'preload.cjs')
-    },
+      nodeIntegration: true,
+      contextIsolation: false
+    }
   });
 
   if (!app.isPackaged) {
     mainWindow.loadURL('http://localhost:5173');
-    mainwindow.webContents.openDevTools();
   } else {
     mainWindow.loadFile(path.join(__dirname, 'dist/index.html'));
   }
+
+  // 2. Cuando el HTML ya está cargado y listo, la maximizamos y la mostramos de golpe
+  mainWindow.once('ready-to-show', () => {
+    mainWindow.maximize(); // La hace grande respetando la barra de tareas
+    mainWindow.show();     // La hace visible
+  });
 }
 
 app.whenReady().then(createWindow);
@@ -38,7 +45,7 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
 
-// --- LOGICA DE IMPRESORAS ---
+// --- LÓGICA DE IMPRESORAS ---
 
 ipcMain.handle('buscar-impresoras', async () => {
     try {
@@ -53,7 +60,7 @@ ipcMain.handle('imprimir-ticket', async (event, datosTicket, config) => {
     try {
         let printer = new ThermalPrinter({
             type: config.ancho === '58mm' ? PrinterTypes.STAR : PrinterTypes.EPSON,
-            interface: 'tcp://127.0.0.1:9100', // Dummy
+            interface: 'tcp://127.0.0.1:9100', // Dummy para generar el buffer local
             characterSet: 'PC858_EURO',
         });
 
@@ -81,9 +88,25 @@ ipcMain.handle('imprimir-ticket', async (event, datosTicket, config) => {
         printer.println(`TOTAL: ${datosTicket.total}€`);
         printer.setTextNormal();
         printer.bold(false);
+
+        // --- CÓDIGO QR DE VERIFACTU ---
+        if (datosTicket.urlVerifactu) {
+            printer.drawLine();
+            printer.alignCenter();
+            printer.println("Sistema VeriFactu - Escanee para verificar:");
+            printer.newLine();
+            printer.printQR(datosTicket.urlVerifactu, {
+                cellSize: 5,
+                correction: 'M',
+                model: 2
+            });
+            printer.newLine();
+        }
+
+        // Cortar el papel
         printer.cut();
 
-        // 1. Guardamos los comandos RAW en un archivo temporal
+        // 1. Guardamos los comandos RAW (ESC/POS) en un archivo temporal
         const tempPath = path.join(os.tmpdir(), `ticket_${Date.now()}.bin`);
         fs.writeFileSync(tempPath, printer.getBuffer());
 

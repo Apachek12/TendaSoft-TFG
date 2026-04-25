@@ -7,7 +7,8 @@ import lombok.Setter;
 
 @Entity
 @Table(name = "datos_negocio")
-@Getter @Setter
+@Getter
+@Setter
 public class DatosNegocio {
 
     @Id
@@ -30,7 +31,7 @@ public class DatosNegocio {
     @Column(nullable = false)
     private Boolean verifactuActivado;
 
-    // La magia del cifrado ocurre aquí
+    // Contraseña del certificado cifrada en BD
     @Convert(converter = Encriptado.class)
     @Column(name = "certificado_password", length = 500)
     private String certificadoPassword;
