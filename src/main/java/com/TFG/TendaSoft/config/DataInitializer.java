@@ -47,7 +47,7 @@ public class DataInitializer implements CommandLineRunner {
         Usuario admin = new Usuario();
         admin.setNombreReal("Fran García");
         admin.setNombreUsuario("admin");
-        admin.setHashContrasena("$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhy8");
+        admin.setHashContrasena("1234");
         admin.setRol("ADMIN");
         usuarioRepository.save(admin);
 
