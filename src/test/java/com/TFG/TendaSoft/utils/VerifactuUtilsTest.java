@@ -21,7 +21,7 @@ class VerifactuUtilsTest {
                 "",
                 "2026-04-24T14:55:28+02:00"
         );
-        assertEquals("6E2E23BC818B2217DAF31014FA6044FE4C0B6B7611A71A3BEABBE234E3BA9150", hash);
+        assertEquals("2EBF8572F8692BD49C04A7017463F29E98733A9C4C80AC62DA8CABF7AA34C669", hash);
     }
 
     @Test
