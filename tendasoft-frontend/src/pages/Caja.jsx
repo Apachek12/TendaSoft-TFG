@@ -1,18 +1,156 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { QRCodeSVG } from 'qrcode.react';
 import {
   Delete, ImageIcon, ChevronLeft, ChevronRight, Trash2,
-  Banknote, CreditCard, ArrowLeft, Printer, Monitor
+  Banknote, CreditCard, ArrowLeft, Printer, Monitor, X, CheckCircle
 } from 'lucide-react';
 import { toast, Toaster } from 'react-hot-toast';
 
 const API = 'http://localhost:8080';
 
+// ── Modal Ticket ─────────────────────────────────────────────────────────────
+function ModalTicket({ ventaGuardada, lineas, total, datosNegocio, onCerrar }) {
+  const fecha = new Date();
+
+  const urlVerifactu =
+    `https://www2.agenciatributaria.gob.es/wlpl/inwinv/es/es.aeat.dit.adu.eaf.j.VerificaQrFacturaEAF` +
+    `?nif=${datosNegocio?.cif || ''}&numserie=${ventaGuardada?.numeroFactura || ''}` +
+    `&fecha=${fecha.toISOString().split('T')[0]}&importe=${total.toFixed(2)}`;
+
+  const baseImpTotal = lineas.reduce((acc, item) => {
+    const iva = item.porcentajeIva ?? 21;
+    return acc + (item.precio * item.cantidad) / (1 + iva / 100);
+  }, 0);
+  const cuotaIva = total - baseImpTotal;
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      onClick={onCerrar}
+    >
+      <div
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden"
+        onClick={e => e.stopPropagation()}
+        style={{ fontFamily: "'Courier New', Courier, monospace" }}
+      >
+        {/* Cabecera */}
+        <div className="bg-[#2ECC71] px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-white">
+            <CheckCircle size={22} />
+            <span className="font-bold text-sm tracking-wide">VENTA REGISTRADA</span>
+          </div>
+          <button onClick={onCerrar} className="text-white/80 hover:text-white">
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Cuerpo */}
+        <div className="px-6 py-4 max-h-[70vh] overflow-y-auto">
+
+          {/* Empresa */}
+          <div className="text-center mb-4 border-b border-dashed border-gray-300 pb-4">
+            <p className="font-black text-xl text-[#2C3E50] tracking-tight">
+              {datosNegocio?.nombreEmpresa || 'TIENDA'}
+            </p>
+            {datosNegocio?.cif && (
+              <p className="text-xs text-gray-500 mt-0.5">CIF: {datosNegocio.cif}</p>
+            )}
+            {datosNegocio?.direccion && (
+              <p className="text-xs text-gray-500">{datosNegocio.direccion}</p>
+            )}
+            <p className="text-xs text-gray-400 mt-1">
+              {fecha.toLocaleDateString('es-ES')}{' '}
+              {fecha.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+            </p>
+            {ventaGuardada?.numeroFactura && (
+              <p className="text-xs text-gray-500 mt-0.5">Nº: {ventaGuardada.numeroFactura}</p>
+            )}
+          </div>
+
+          {/* Líneas */}
+          <div className="mb-4 border-b border-dashed border-gray-300 pb-4 space-y-1.5">
+            {lineas.map((item, i) => (
+              <div key={i} className="flex justify-between items-start text-sm">
+                <div className="flex-1 pr-2">
+                  <p className="font-bold text-[#2C3E50] leading-tight">{item.nombre}</p>
+                  <p className="text-xs text-gray-400">
+                    {item.cantidad} x {item.precio.toFixed(2)} €
+                    {item.porcentajeIva != null && ` (IVA ${item.porcentajeIva}%)`}
+                  </p>
+                </div>
+                <p className="font-black text-[#2C3E50] whitespace-nowrap">
+                  {(item.precio * item.cantidad).toFixed(2)} €
+                </p>
+              </div>
+            ))}
+          </div>
+
+          {/* Totales */}
+          <div className="mb-4 border-b border-dashed border-gray-300 pb-4 space-y-1 text-sm">
+            <div className="flex justify-between text-gray-500">
+              <span>Base imponible</span>
+              <span>{baseImpTotal.toFixed(2)} €</span>
+            </div>
+            <div className="flex justify-between text-gray-500">
+              <span>IVA</span>
+              <span>{cuotaIva.toFixed(2)} €</span>
+            </div>
+            <div className="flex justify-between font-black text-xl text-[#2C3E50] mt-1">
+              <span>TOTAL</span>
+              <span>{total.toFixed(2)} €</span>
+            </div>
+          </div>
+
+          {/* QR VeriFactu */}
+          <div className="flex flex-col items-center mb-4 border-b border-dashed border-gray-300 pb-4">
+            <p className="text-[10px] text-gray-400 uppercase tracking-widest mb-2">
+              Verificación VeriFactu
+            </p>
+            <QRCodeSVG value={urlVerifactu} size={128} />
+            <p className="text-[9px] text-gray-300 mt-1 text-center">
+              Escanea para verificar en la AEAT
+            </p>
+          </div>
+
+          {/* Estado VeriFactu */}
+          {ventaGuardada?.estadoVerifactu && (
+            <div className="text-center mb-3">
+              <span className={`text-xs font-bold px-3 py-1 rounded-full ${
+                ventaGuardada.estadoVerifactu.toUpperCase() === 'CORRECTO'
+                  ? 'bg-green-100 text-green-700'
+                  : 'bg-yellow-100 text-yellow-700'
+              }`}>
+                VeriFactu: {ventaGuardada.estadoVerifactu}
+              </span>
+            </div>
+          )}
+
+          {/* Mensaje pie */}
+          <p className="text-center text-xs text-gray-400 italic">
+            {datosNegocio?.mensajeTicket || '¡Gracias por su compra!'}
+          </p>
+        </div>
+
+        {/* Botón cerrar */}
+        <div className="px-6 pb-5 pt-2">
+          <button
+            onClick={onCerrar}
+            className="w-full bg-[#2C3E50] text-white font-bold py-3 rounded-xl hover:bg-black transition-colors text-sm tracking-wide"
+          >
+            CERRAR TICKET
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Caja principal ────────────────────────────────────────────────────────────
 export default function Caja() {
   const navigate = useNavigate();
   const scrollCategoriasRef = useRef(null);
-
   const [usuarioNombre, setUsuarioNombre]     = useState('Vendedor');
   const [productos, setProductos]             = useState([]);
   const [categorias, setCategorias]           = useState([]);
@@ -20,9 +158,11 @@ export default function Caja() {
   const [showProducts, setShowProducts]       = useState(false);
   const [ventaActual, setVentaActual]         = useState([]);
   const [codigoInput, setCodigoInput]         = useState('');
-  const [pasoPago, setPasoPago]               = useState(null); // null | 'seleccion' | 'efectivo' | 'tarjeta'
+  const [pasoPago, setPasoPago]               = useState(null);
   const [dineroEntregado, setDineroEntregado] = useState('');
   const [cambio, setCambio]                   = useState(null);
+  const [datosNegocio, setDatosNegocio]       = useState(null);
+  const [ticketData, setTicketData]           = useState(null);
 
   const total = ventaActual.reduce((acc, item) => acc + item.precio * item.cantidad, 0);
 
@@ -30,10 +170,18 @@ export default function Caja() {
     const auth = JSON.parse(localStorage.getItem('usuarioTendaSoft'));
     if (auth) setUsuarioNombre(auth.nombreUsuario || auth.nombreReal);
     fetchData();
+    fetchDatosNegocio();
   }, []);
 
-  // Carga catálogo y cruza el idCategoria desde la respuesta de categorías
-  // (la API de productos no devuelve el ID de categoría directamente)
+  const fetchDatosNegocio = async () => {
+    try {
+      const { data } = await axios.get(`${API}/api/datos-negocio`);
+      setDatosNegocio(data);
+    } catch (e) {
+      console.warn('No se pudieron cargar datos del negocio');
+    }
+  };
+
   const fetchData = async () => {
     try {
       const [resProd, resCat] = await Promise.all([
@@ -41,24 +189,21 @@ export default function Caja() {
         axios.get(`${API}/api/categorias`)
       ]);
       setCategorias(resCat.data);
-
       const cruzados = resCat.data.flatMap(cat =>
         (cat.productos || []).map(p => ({ codigoBarras: p.codigoBarras, idCategoriaReal: cat.id }))
       );
-
-      const productosFinales = resProd.data.map(p => {
-        const match = cruzados.find(c => c.codigoBarras === p.codigoBarras);
-        return { ...p, idCategoriaReal: match ? match.idCategoriaReal : 'sin-categoria' };
-      });
-
+      const productosFinales = resProd.data
+        .filter(p => p.activo !== false)
+        .map(p => {
+          const match = cruzados.find(c => c.codigoBarras === p.codigoBarras);
+          return { ...p, idCategoriaReal: match ? match.idCategoriaReal : 'sin-categoria' };
+        });
       setProductos(productosFinales);
     } catch (e) {
       console.error('Error cargando el catálogo:', e);
       toast.error('Error al cargar productos');
     }
   };
-
-  // ── Lógica de venta ─────────────────────────────────────────────────────────
 
   const agregarProducto = (prod) => {
     setVentaActual(prev => {
@@ -101,8 +246,6 @@ export default function Caja() {
     setCambio(entregado - total);
   };
 
-  // ── Numpad ───────────────────────────────────────────────────────────────────
-
   const desplazarCategorias = (direccion) => {
     scrollCategoriasRef.current?.scrollBy({
       left: direccion === 'izq' ? -150 : 150,
@@ -130,16 +273,12 @@ export default function Caja() {
     }
   };
 
-  // ── Finalizar venta ──────────────────────────────────────────────────────────
-
-  const finalizarVenta = async (imprimirTicket) => {
+  const finalizarVenta = async (mostrarTicket) => {
     if (ventaActual.length === 0) return;
     const tId = toast.loading('Registrando venta...');
-
     try {
       const auth = JSON.parse(localStorage.getItem('usuarioTendaSoft')) || {};
       const idUsuario = parseInt(auth.idUsuario || auth.id || 1);
-
       const payload = {
         venta: {
           usuario: { idUsuario },
@@ -158,7 +297,6 @@ export default function Caja() {
 
       const { data: ventaGuardada } = await axios.post(`${API}/api/ventas`, payload);
 
-      // El estado VeriFactu puede venir en camelCase o snake_case según el serializador
       const estadoRaw = ventaGuardada.estadoVerifactu || ventaGuardada.estado_verifactu || '';
       const estVF     = String(estadoRaw).toUpperCase().trim();
       const esCorrecta       = estVF === 'CORRECTO';
@@ -167,46 +305,30 @@ export default function Caja() {
       if (esCorrecta || esPendienteEnvio) {
         toast.success(
           esCorrecta ? 'Venta completada y enviada a la AEAT' : 'Venta completada (envío AEAT pendiente)',
-          { id: tId, duration: 4000 }
+          { id: tId, duration: 3000 }
         );
       } else {
-        toast.error(`Venta guardada, pero VeriFactu reporta: ${estVF || 'Error desconocido'}`, {
-          id: tId, duration: 5000
+        toast.error(`Venta guardada, pero VeriFactu: ${estVF || 'Error'}`, { id: tId, duration: 4000 });
+      }
+
+      if (mostrarTicket) {
+        setTicketData({
+          ventaGuardada,
+          lineas: ventaActual.map(item => ({
+            nombre: item.nombre,
+            cantidad: item.cantidad,
+            precio: item.precio,
+            porcentajeIva: item.porcentajeIva ?? null
+          })),
+          total
         });
       }
 
-      // Impresión del ticket si se solicitó
-      if (imprimirTicket && window.impresoraAPI) {
-        const configImpresora = JSON.parse(localStorage.getItem('impresoraTendaSoft'));
-        if (!configImpresora) {
-          toast.error('Sin impresora configurada');
-        } else {
-          const datosTicket = {
-            nombreEmpresa: 'TendaSoft', // TODO: obtener de DatosNegocio
-            cif: 'A39200019',
-            lineas: ventaActual.map(item => ({
-              cantidad: item.cantidad,
-              concepto: item.nombre,
-              precio: (item.precio * item.cantidad).toFixed(2)
-            })),
-            total: total.toFixed(2),
-            urlVerifactu: 'https://www2.agenciatributaria.gob.es/wlpl/inwinv/es/es.aeat.dit.adu.eaf.j.VerificaQrFacturaEAF'
-          };
-          const resultado = await window.impresoraAPI.imprimirTicket(datosTicket, {
-            nombreImpresora: configImpresora.nombreSistema,
-            ancho: configImpresora.anchoPapel
-          });
-          if (!resultado.success) toast.error('Error al comunicarse con la impresora');
-        }
-      }
-
-      // Limpiar interfaz y refrescar stock
       setVentaActual([]);
       setPasoPago(null);
       setDineroEntregado('');
       setCambio(null);
       fetchData();
-
     } catch (error) {
       console.error('Error al registrar la venta:', error);
       toast.error(
@@ -216,11 +338,19 @@ export default function Caja() {
     }
   };
 
-  // ── Render ───────────────────────────────────────────────────────────────────
-
   return (
     <div className="h-screen bg-[#F4F7F9] p-4 flex flex-col font-sans overflow-hidden antialiased">
       <Toaster position="top-right" reverseOrder={false} />
+
+      {ticketData && (
+        <ModalTicket
+          ventaGuardada={ticketData.ventaGuardada}
+          lineas={ticketData.lineas}
+          total={ticketData.total}
+          datosNegocio={datosNegocio}
+          onCerrar={() => setTicketData(null)}
+        />
+      )}
 
       {/* Cabecera */}
       <div className="flex items-center justify-between mb-4 flex-shrink-0">
@@ -244,22 +374,17 @@ export default function Caja() {
       </div>
 
       <div className="flex flex-1 overflow-hidden">
-
-        {/* Columna izquierda: ticket virtual */}
+        {/* Columna izquierda */}
         <div className="w-[60%] h-full pr-2">
           <div className="bg-white rounded-[16px] shadow-sm flex flex-col h-full overflow-hidden">
-
             {!pasoPago ? (
               <>
-                {/* Cabecera de columnas */}
                 <div className="flex bg-[#F8F9FA] px-4 py-2.5 text-[11px] font-bold text-[#7F8C8D] tracking-wider uppercase items-center">
                   <div className="flex-[2.5]">PRODUCTO</div>
                   <div className="flex-1 text-right">CANT.</div>
                   <div className="flex-[1.2] text-right">PRECIO</div>
                   <div className="w-8" />
                 </div>
-
-                {/* Lista de líneas */}
                 <div className="flex-1 overflow-y-auto p-2 scrollbar-thin">
                   {ventaActual.length === 0 ? (
                     <div className="h-full flex items-center justify-center text-[#95A5A6] italic text-sm">
@@ -300,10 +425,7 @@ export default function Caja() {
                     })
                   )}
                 </div>
-
                 <div className="h-[1px] bg-[#E0E6ED] w-full" />
-
-                {/* Pie: total + botón cobrar */}
                 <div className="h-20 flex items-center px-6 justify-between bg-white">
                   <button
                     onClick={() => { if (validarStockAntesDeCobrar()) setPasoPago('seleccion'); }}
@@ -316,7 +438,6 @@ export default function Caja() {
                 </div>
               </>
             ) : (
-              /* Vista de cobro */
               <div className="flex flex-col h-full animate-in zoom-in-95 duration-200 bg-white relative">
                 <button
                   onClick={() => { setPasoPago(null); setCambio(null); setDineroEntregado(''); }}
@@ -324,8 +445,6 @@ export default function Caja() {
                 >
                   <ArrowLeft size={18} className="mr-1" /> Volver al ticket
                 </button>
-
-                {/* Selección de método de pago */}
                 {pasoPago === 'seleccion' && (
                   <div className="flex flex-col items-center justify-center h-full px-12">
                     <p className="text-[#1565C0] text-5xl font-black mb-10 text-center">TOTAL: {total.toFixed(2)} €</p>
@@ -346,8 +465,6 @@ export default function Caja() {
                     </div>
                   </div>
                 )}
-
-                {/* Pago en efectivo */}
                 {pasoPago === 'efectivo' && (
                   <div className="flex flex-col items-center justify-center h-full px-16 pt-8">
                     <p className="text-[#1565C0] text-4xl font-black mb-8">TOTAL: {total.toFixed(2)} €</p>
@@ -362,12 +479,10 @@ export default function Caja() {
                     )}
                   </div>
                 )}
-
-                {/* Pago con tarjeta */}
                 {pasoPago === 'tarjeta' && (
                   <div className="flex flex-col items-center justify-center h-full px-16">
                     <p className="text-[#1976D2] text-[64px] font-black mb-16 tracking-tighter">{total.toFixed(2)} €</p>
-                    <BotonesFinalizacion onFinalizar={finalizarVenta} className="w-full" h="h-[80px]" />
+                    <BotonesFinalizacion onFinalizar={finalizarVenta} h="h-[80px]" />
                   </div>
                 )}
               </div>
@@ -375,7 +490,7 @@ export default function Caja() {
           </div>
         </div>
 
-        {/* Columna derecha: numpad o catálogo */}
+        {/* Columna derecha */}
         <div className="w-[40%] h-full flex flex-col">
           {!pasoPago && (
             <div className="animate-in fade-in">
@@ -395,10 +510,8 @@ export default function Caja() {
               </button>
             </div>
           )}
-
           <div className="flex-1 flex flex-col overflow-hidden">
             {showProducts && !pasoPago ? (
-              /* Catálogo de productos */
               <div className="flex flex-col h-full animate-in fade-in duration-200">
                 <div className="flex items-center space-x-1 mb-3 w-full">
                   <button onClick={() => desplazarCategorias('izq')} className="p-1 text-slate-500 hover:text-black">
@@ -433,7 +546,6 @@ export default function Caja() {
                     <ChevronRight size={24} />
                   </button>
                 </div>
-
                 <div className="flex-1 overflow-y-auto grid grid-cols-3 gap-3 content-start pb-2 pr-1 scrollbar-thin">
                   {productos
                     .filter(p => catSeleccionada === 'todas' || String(p.idCategoriaReal) === String(catSeleccionada))
@@ -465,7 +577,6 @@ export default function Caja() {
                 </div>
               </div>
             ) : (
-              /* Numpad */
               <div className={`grid grid-cols-3 gap-1.5 flex-1 pb-2 ${pasoPago ? 'pt-2' : ''}`}>
                 {[1, 2, 3, 4, 5, 6, 7, 8, 9, ',', 0].map(n => (
                   <button
@@ -484,7 +595,6 @@ export default function Caja() {
                 </button>
               </div>
             )}
-
             {(!showProducts || pasoPago) && (
               <button
                 onClick={handleEnterClick}
@@ -505,7 +615,6 @@ export default function Caja() {
   );
 }
 
-// Botones FINALIZAR + TICKET compartidos por efectivo y tarjeta
 function BotonesFinalizacion({ onFinalizar, h = 'h-[72px]' }) {
   return (
     <div className="flex w-full space-x-4">
