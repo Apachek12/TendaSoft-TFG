@@ -47,14 +47,14 @@ public class DataInitializer implements CommandLineRunner {
         Usuario admin = new Usuario();
         admin.setNombreReal("Fran García");
         admin.setNombreUsuario("admin");
-        admin.setHashContrasena("1234");
+        admin.setHashContrasena("$2a$10$yrFEuhF7QBc/tlbNYTlMi.cbFkccXhkoicFLzGIZJ58jZ.3t6nf6K");
         admin.setRol("ADMIN");
         usuarioRepository.save(admin);
 
         Usuario vendedor = new Usuario();
         vendedor.setNombreReal("Marta TPV");
         vendedor.setNombreUsuario("vendedor");
-        vendedor.setHashContrasena("$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhy8");
+        vendedor.setHashContrasena("$2a$10$yrFEuhF7QBc/tlbNYTlMi.cbFkccXhkoicFLzGIZJ58jZ.3t6nf6K");
         vendedor.setRol("VENDEDOR");
         usuarioRepository.save(vendedor);
     }
@@ -101,7 +101,7 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     private void inicializarAnclaVerifactu() {
-        String numeroAncla = "FAC-2026-0034";
+        String numeroAncla = "FAC-2026-0063";
 
         // La comprobación debe buscar el mismo número que se va a insertar
         if (ventaRepository.findFirstByNumeroFacturaStartingWithOrderByIdDesc(numeroAncla).isPresent()) return;

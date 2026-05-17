@@ -1,16 +1,52 @@
-# React + Vite
+# TendaSoft TPV
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Sistema de Punto de Venta con integración VeriFactu (AEAT).
 
-Currently, two official plugins are available:
+## Requisitos
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) instalado y en ejecución
+- [Node.js](https://nodejs.org/) v18 o superior
 
-## React Compiler
+## Arranque
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+**1. Backend + Base de datos**
 
-## Expanding the ESLint configuration
+Desde la raíz del proyecto:
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```bash
+docker-compose up --build
+```
+
+**2. Frontend**
+
+Desde la carpeta `tendasoft-frontend`:
+
+```bash
+npm install
+npm run electron:dev
+```
+
+## Credenciales
+
+| Usuario    | Contraseña | Rol      |
+|------------|------------|----------|
+| `admin`    | `1234`     | Admin    |
+| `vendedor` | `1234`     | Vendedor |
+
+**Base de datos MySQL**
+- Host: `localhost:3306`
+- Base de datos: `tendasoft`
+- Usuario: `root` / Contraseña: `root`
+
+**Certificado VeriFactu**
+- Archivo: `Certificado_RPJ_A39200019_CERTIFICADO_ENTIDAD_PRUEBAS_5_Pre.p12`
+- Contraseña: `1234`
+- Es un certificado de **pruebas** de la AEAT (pre-producción)
+- Se configura desde la app en **Configuración del Negocio**
+
+## Datos iniciales
+
+Al arrancar por primera vez, la aplicación carga automáticamente:
+- 2 categorías (Bebidas, Alimentación)
+- 3 productos de ejemplo
+- Usuarios admin y vendedor listos para usar
