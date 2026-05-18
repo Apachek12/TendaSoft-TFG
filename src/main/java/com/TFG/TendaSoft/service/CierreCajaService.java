@@ -65,7 +65,7 @@ public class CierreCajaService {
 
         ResumenCajaDTO resumen = obtenerResumenActual(idUsuario);
 
-        // El descuadre se calcula sobre el efectivo: lo que había + lo ingresado vs lo contado físicamente
+        // Cálculo descuadre efectivo
         BigDecimal dineroEsperado = caja.getFondoInicial().add(resumen.getEfectivo());
 
         caja.setFechaCierre(LocalDateTime.now());

@@ -25,7 +25,7 @@ public class Usuario {
     private String hashContrasena;
 
     @Column(length = 20, nullable = false)
-    private String rol; // ADMIN | VENDEDOR
+    private String rol;
 
     private Boolean activo = true;
 }

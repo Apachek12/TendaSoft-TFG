@@ -63,8 +63,6 @@ export default function ModalImportarProductos({ isOpen, onClose, onSuccess, cat
   return (
     <div className="fixed inset-0 bg-[#001D3D]/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-[24px] w-full max-w-2xl h-[90vh] shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden flex flex-col border border-gray-100">
-
-        {/* Cabecera */}
         <div className="p-6 flex justify-between items-center bg-white border-b border-gray-50 flex-shrink-0">
           <div className="flex items-center gap-3">
             <CornerDownRight className="w-8 h-8 text-[#001D3D] p-1.5 bg-slate-100 rounded-xl" />
@@ -79,8 +77,6 @@ export default function ModalImportarProductos({ isOpen, onClose, onSuccess, cat
             <X size={24} className="text-slate-400 hover:text-slate-600" />
           </button>
         </div>
-
-        {/* Buscador */}
         <div className="p-4 border-b border-gray-50 bg-white flex-shrink-0 relative">
           <Search className="absolute left-7 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
           <input
@@ -91,8 +87,6 @@ export default function ModalImportarProductos({ isOpen, onClose, onSuccess, cat
             className="w-full h-12 pl-14 pr-4 bg-[#F8F9FA] rounded-xl outline-none font-bold text-[#2C3E50]"
           />
         </div>
-
-        {/* Lista */}
         <div className="flex-1 overflow-y-auto divide-y divide-slate-50 p-4">
           {productosFiltrados.length > 0 ? productosFiltrados.map(p => {
             const isSelected = !!seleccionados[p.codigoBarras];
@@ -128,8 +122,6 @@ export default function ModalImportarProductos({ isOpen, onClose, onSuccess, cat
             </p>
           )}
         </div>
-
-        {/* Botón importar */}
         <div className="p-6 border-t border-gray-50 bg-white flex-shrink-0">
           <button
             onClick={handleImportar}

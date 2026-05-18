@@ -45,7 +45,7 @@ public class Venta {
     @Column(name = "nombre_cliente", length = 150)
     private String nombreCliente;
 
-    // ── VeriFactu ────────────────────────────────────────────────────────────
+    // VeriFactu
 
     @Column(name = "estado_verifactu", length = 50, nullable = false)
     private String estadoVerifactu;
@@ -65,11 +65,11 @@ public class Venta {
     @Column(name = "cif_emisor_anterior", length = 15)
     private String cifEmisorAnterior;
 
-    // XML firmado para reenvíos sin regenerar el hash
+    // Para reenvíos sin regenerar el hash
     @Column(name = "xml_firmado", columnDefinition = "TEXT")
     private String xmlFirmado;
 
-    // ── Relaciones ───────────────────────────────────────────────────────────
+    // Relaciones
 
     @ManyToOne
     @JoinColumn(name = "Usuariosid_usuario", nullable = false)

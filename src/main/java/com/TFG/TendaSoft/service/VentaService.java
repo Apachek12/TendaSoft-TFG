@@ -42,12 +42,12 @@ public class VentaService {
         DatosNegocio negocio = datosNegocioRepository.findTopByOrderByIdAsc()
                 .orElseThrow(() -> new RuntimeException("Configure los datos de la empresa antes de vender."));
 
-        // 1. Número de factura y fecha
+        // Número de factura y fecha
         venta.setNumeroFactura(generarSiguienteNumeroFactura());
         venta.setFecha(LocalDateTime.now());
         if (venta.getTipoFactura() == null) venta.setTipoFactura("F2");
 
-        // 2. Encadenamiento VeriFactu: enlazamos a la última factura aceptada por la AEAT
+        // Encadenamiento VeriFactu: enlazado a la última factura aceptada
         Optional<Venta> ultimaCorrecta = ventaRepository.findFirstByEstadoVerifactuOrderByIdDesc("CORRECTO");
         if (ultimaCorrecta.isPresent()) {
             Venta anterior = ultimaCorrecta.get();
@@ -65,7 +65,7 @@ public class VentaService {
         venta.setHashVerifactu("PENDIENTE_CALCULO");
         venta.setEstadoVerifactu("PROCESANDO");
 
-        // 3. Cálculo de IVA y base imponible por línea
+        // Cálculo de IVA y base imponible por línea
         BigDecimal baseImponibleTotal = BigDecimal.ZERO;
         BigDecimal cuotaIvaTotal      = BigDecimal.ZERO;
         if (venta.getLineas() == null) venta.setLineas(new ArrayList<>());
@@ -98,14 +98,14 @@ public class VentaService {
         venta.setCuotaIvaTotal(cuotaIvaTotal);
         venta.setTotal(baseImponibleTotal.add(cuotaIvaTotal));
 
-        // 4. Guardado inicial en BD
+        // Guardado en BD
         Venta ventaGuardada = ventaRepository.save(venta);
         for (LineaVenta l : lineas) {
             l.setVenta(ventaGuardada);
             lineaVentaRepository.save(l);
         }
 
-        // 5. Proceso VeriFactu
+        // Proceso VeriFactu
         procesarVerifactu(ventaGuardada, lineas, negocio);
         return ventaGuardada;
     }
@@ -213,8 +213,6 @@ public class VentaService {
                 .build();
     }
 
-    // ── Métodos privados ─────────────────────────────────────────────────────
-
     private void procesarVerifactu(Venta ventaGuardada, List<LineaVenta> lineas, DatosNegocio negocio) {
         try {
             log.info("VeriFactu — generando XML para factura {}", ventaGuardada.getNumeroFactura());
@@ -253,8 +251,6 @@ public class VentaService {
         }
     }
 
-    // La AEAT usa namespaces en las etiquetas (tikR:EstadoEnvio, tikR:EstadoRegistro),
-    // buscar ">Correcto<" funciona independientemente del namespace.
     private boolean esRespuestaCorrecta(String respuesta) {
         return respuesta.contains(">Correcto<");
     }

@@ -8,8 +8,8 @@ import { toast } from 'react-hot-toast';
 const API = 'http://localhost:8080';
 
 export default function ConfiguracionNegocioModal({ isOpen, onClose, onConfiguracionGuardada }) {
-  const [vista, setVista]                   = useState('fiscal'); // 'fiscal' | 'ticket'
-  const [paso, setPaso]                     = useState('formulario'); // 'formulario' | 'exito'
+  const [vista, setVista]                   = useState('fiscal');
+  const [paso, setPaso]                     = useState('formulario');
   const [loading, setLoading]               = useState(false);
   const [logoFile, setLogoFile]             = useState(null);
   const [logoPreview, setLogoPreview]       = useState(null);
@@ -39,10 +39,10 @@ export default function ConfiguracionNegocioModal({ isOpen, onClose, onConfigura
           });
         }
       })
-      .catch(() => {}); // Primera vez sin configuración: ignoramos el error
+      .catch(() => {}); // Primera vez sin configuración: ignorar
   }, [isOpen]);
 
-  // ── Requisitos para activar VeriFactu ────────────────────────────────────────
+  // Requisitos Verifactu
   const tieneNif          = !!datos.cif?.trim();
   const tieneCertificado  = !!(datos.rutaCertificado?.trim() || certificadoFile);
   const tienePassword     = !!datos.certificadoPassword?.trim();
@@ -115,7 +115,6 @@ export default function ConfiguracionNegocioModal({ isOpen, onClose, onConfigura
           {paso === 'formulario' ? (
             <>
               {vista === 'fiscal' ? (
-                /* ── Vista: datos fiscales ───────────────────────────────── */
                 <div className="space-y-4 animate-in slide-in-from-left-4 duration-300">
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-[#95A5A6] uppercase ml-2">Razón Social</label>
@@ -140,8 +139,6 @@ export default function ConfiguracionNegocioModal({ isOpen, onClose, onConfigura
                       onChange={e => setDatos({ ...datos, direccion: e.target.value })}
                     />
                   </div>
-
-                  {/* Panel de estado VeriFactu */}
                   <div className="p-5 bg-slate-50 border border-slate-200 rounded-2xl my-6">
                     <div className="flex items-center justify-between mb-4">
                       <div>
@@ -171,7 +168,6 @@ export default function ConfiguracionNegocioModal({ isOpen, onClose, onConfigura
                       ))}
                     </div>
                   </div>
-
                   <div className="grid grid-cols-2 gap-4">
                     <label className="h-14 border-2 border-dashed border-[#E0E6ED] rounded-2xl text-[#34495E] font-black text-[10px] flex items-center justify-center gap-2 hover:bg-gray-50 cursor-pointer uppercase transition-colors">
                       <Upload size={16} /> {certificadoFile ? 'CAMBIAR .P12' : 'SUBIR CERTIFICADO'}
@@ -188,7 +184,6 @@ export default function ConfiguracionNegocioModal({ isOpen, onClose, onConfigura
                       />
                     </div>
                   </div>
-
                   <button
                     onClick={() => setVista('ticket')}
                     className="w-full h-14 bg-gray-100 text-[#001D3D] font-black rounded-2xl hover:bg-gray-200 transition-all uppercase text-xs tracking-widest flex items-center justify-center mt-2"
@@ -197,7 +192,6 @@ export default function ConfiguracionNegocioModal({ isOpen, onClose, onConfigura
                   </button>
                 </div>
               ) : (
-                /* ── Vista: diseño del ticket ────────────────────────────── */
                 <div className="flex gap-8 animate-in slide-in-from-right-4 duration-300">
                   <div className="flex-1 space-y-4">
                     <div className="space-y-1">
@@ -227,8 +221,6 @@ export default function ConfiguracionNegocioModal({ isOpen, onClose, onConfigura
                       Volver a datos fiscales
                     </button>
                   </div>
-
-                  {/* Preview del ticket */}
                   <div className="w-64 bg-white border-t-8 border-[#001D3D] p-5 shadow-xl text-[10px] font-mono text-[#2C3E50] flex flex-col items-center">
                     {(logoPreview || datos.rutaLogo) && (
                       <img
@@ -273,7 +265,6 @@ export default function ConfiguracionNegocioModal({ isOpen, onClose, onConfigura
               </button>
             </>
           ) : (
-            /* ── Éxito ─────────────────────────────────────────────────── */
             <div className="py-10 text-center animate-in zoom-in">
               <div className="w-20 h-20 bg-green-100 text-green-500 rounded-full flex items-center justify-center mb-6 mx-auto">
                 <CheckCircle2 size={40} />

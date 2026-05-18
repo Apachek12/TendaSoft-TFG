@@ -10,7 +10,8 @@ import { toast, Toaster } from 'react-hot-toast';
 
 const API = 'http://localhost:8080';
 
-// ── Modal Ticket ─────────────────────────────────────────────────────────────
+// Modal visualización ticket
+
 function ModalTicket({ ventaGuardada, lineas, total, datosNegocio, onCerrar }) {
   const fecha = new Date();
 
@@ -46,10 +47,8 @@ function ModalTicket({ ventaGuardada, lineas, total, datosNegocio, onCerrar }) {
           </button>
         </div>
 
-        {/* Cuerpo */}
         <div className="px-6 py-4 max-h-[70vh] overflow-y-auto">
 
-          {/* Empresa */}
           <div className="text-center mb-4 border-b border-dashed border-gray-300 pb-4">
             <p className="font-black text-xl text-[#2C3E50] tracking-tight">
               {datosNegocio?.nombreEmpresa || 'TIENDA'}
@@ -69,7 +68,6 @@ function ModalTicket({ ventaGuardada, lineas, total, datosNegocio, onCerrar }) {
             )}
           </div>
 
-          {/* Líneas */}
           <div className="mb-4 border-b border-dashed border-gray-300 pb-4 space-y-1.5">
             {lineas.map((item, i) => (
               <div key={i} className="flex justify-between items-start text-sm">
@@ -87,7 +85,6 @@ function ModalTicket({ ventaGuardada, lineas, total, datosNegocio, onCerrar }) {
             ))}
           </div>
 
-          {/* Totales */}
           <div className="mb-4 border-b border-dashed border-gray-300 pb-4 space-y-1 text-sm">
             <div className="flex justify-between text-gray-500">
               <span>Base imponible</span>
@@ -103,7 +100,6 @@ function ModalTicket({ ventaGuardada, lineas, total, datosNegocio, onCerrar }) {
             </div>
           </div>
 
-          {/* QR VeriFactu */}
           <div className="flex flex-col items-center mb-4 border-b border-dashed border-gray-300 pb-4">
             <p className="text-[10px] text-gray-400 uppercase tracking-widest mb-2">
               Verificación VeriFactu
@@ -114,7 +110,6 @@ function ModalTicket({ ventaGuardada, lineas, total, datosNegocio, onCerrar }) {
             </p>
           </div>
 
-          {/* Estado VeriFactu */}
           {ventaGuardada?.estadoVerifactu && (
             <div className="text-center mb-3">
               <span className={`text-xs font-bold px-3 py-1 rounded-full ${
@@ -127,13 +122,11 @@ function ModalTicket({ ventaGuardada, lineas, total, datosNegocio, onCerrar }) {
             </div>
           )}
 
-          {/* Mensaje pie */}
           <p className="text-center text-xs text-gray-400 italic">
             {datosNegocio?.mensajeTicket || '¡Gracias por su compra!'}
           </p>
         </div>
 
-        {/* Botón cerrar */}
         <div className="px-6 pb-5 pt-2">
           <button
             onClick={onCerrar}
@@ -147,7 +140,8 @@ function ModalTicket({ ventaGuardada, lineas, total, datosNegocio, onCerrar }) {
   );
 }
 
-// ── Caja principal ────────────────────────────────────────────────────────────
+// Caja principal
+
 export default function Caja() {
   const navigate = useNavigate();
   const scrollCategoriasRef = useRef(null);
@@ -352,7 +346,6 @@ export default function Caja() {
         />
       )}
 
-      {/* Cabecera */}
       <div className="flex items-center justify-between mb-4 flex-shrink-0">
         <div className="flex items-center">
           <button
@@ -374,7 +367,6 @@ export default function Caja() {
       </div>
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Columna izquierda */}
         <div className="w-[60%] h-full pr-2">
           <div className="bg-white rounded-[16px] shadow-sm flex flex-col h-full overflow-hidden">
             {!pasoPago ? (
@@ -489,8 +481,6 @@ export default function Caja() {
             )}
           </div>
         </div>
-
-        {/* Columna derecha */}
         <div className="w-[40%] h-full flex flex-col">
           {!pasoPago && (
             <div className="animate-in fade-in">

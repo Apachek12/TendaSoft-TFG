@@ -48,7 +48,7 @@ export default function Usuarios() {
     setIsModalOpen(true);
   };
 
-  // Toast de confirmación antes de cambiar el estado activo/inactivo de un usuario
+  // Toast de confirmación antes de cambiar el estado del usuario
   const handleToggleStatus = (e, user) => {
     e.stopPropagation();
     const id      = user.idUsuario || user.id;
@@ -102,7 +102,6 @@ export default function Usuarios() {
 
       <div className="max-w-5xl mx-auto">
 
-        {/* Cabecera */}
         <div className="flex items-center justify-between mb-10 flex-shrink-0">
           <div className="flex items-center">
             <button
@@ -136,7 +135,6 @@ export default function Usuarios() {
         {cargando && <p className="text-center text-gray-500 animate-pulse py-10">Cargando usuarios...</p>}
         {error    && <div className="bg-red-50 text-red-600 p-4 rounded-xl text-center border border-red-100 mb-6">{error}</div>}
 
-        {/* Lista de usuarios */}
         <div className="space-y-4">
           {!cargando && !error && usuariosFiltrados.map(user => (
             <div
@@ -147,7 +145,6 @@ export default function Usuarios() {
                   : 'bg-white border border-slate-100 shadow-sm hover:shadow-md'
               }`}
             >
-              {/* Avatar con inicial */}
               <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-black text-xl mr-5 transition-transform ${
                 user.activo === false
                   ? 'bg-slate-200 text-slate-500'
@@ -170,7 +167,6 @@ export default function Usuarios() {
                 <p className="text-xs font-bold text-teal-600 tracking-wider">@{user.nombreUsuario}</p>
               </div>
 
-              {/* Badge de rol */}
               <div className="mr-8">
                 <span className={`px-4 py-1.5 rounded-lg text-[10px] font-black tracking-widest uppercase shadow-sm ${
                   user.rol === 'ADMIN'
@@ -181,7 +177,6 @@ export default function Usuarios() {
                 </span>
               </div>
 
-              {/* Acciones */}
               <div className="flex items-center space-x-1 border-l pl-6 border-slate-100">
                 <button onClick={e => handleEdit(e, user)} className="p-2 text-slate-300 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-all">
                   <Edit className="w-5 h-5" />

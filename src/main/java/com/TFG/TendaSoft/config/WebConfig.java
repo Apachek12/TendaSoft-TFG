@@ -9,7 +9,7 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        // Mapea la URL http://localhost:8080/uploads/** // a la carpeta física "uploads" en la raíz de tu proyecto
+        // Mapea la URL http://localhost:8080/uploads/** // a la carpeta física "uploads" en la raíz del proyecto
         registry.addResourceHandler("/uploads/**")
                 .addResourceLocations("file:uploads/");
     }

@@ -77,12 +77,7 @@ export default function Facturacion() {
     }
   };
 
-  // Clasifica el estado VeriFactu en categorías visuales.
-  // Estados posibles desde VentaService:
-  //   CORRECTO                  → Aceptada por la AEAT       (verde)
-  //   FIRMADO / FIRMADO_Y_...   → Firmada, pendiente de envío (azul)
-  //   ERROR_AEAT / ERROR_FIRMA / ERROR_XML → Error          (rojo)
-  //   PROCESANDO / PENDIENTE_CALCULO / otro → Pendiente     (ámbar)
+  // Clasifica el estado VeriFactu en categorías visuales
   const clasificarEstado = (estadoRaw) => {
     const est = (estadoRaw || '').toUpperCase().trim();
     if (est === 'CORRECTO') return {
@@ -127,8 +122,6 @@ export default function Facturacion() {
       </div>
 
       <div className="flex-1 flex gap-6 overflow-hidden">
-
-        {/* Panel de filtros */}
         <div className="w-[45%] h-full">
           <div className="bg-white rounded-[20px] shadow-sm p-8 flex flex-col h-full">
             <h2 className="text-[#34495E] font-bold text-xl mb-6">Filtro de búsqueda</h2>
@@ -168,8 +161,6 @@ export default function Facturacion() {
             </div>
           </div>
         </div>
-
-        {/* Panel de resultados */}
         <div className="w-[55%] h-full overflow-hidden flex flex-col">
           <div className="flex-1 overflow-y-auto pr-2 pb-6 scrollbar-hide">
 

@@ -82,7 +82,6 @@ export default function CierreCaja() {
     <div className="h-screen w-screen overflow-hidden bg-[#F4F7F9] p-6 flex flex-col font-sans">
       <Toaster position="top-right" />
 
-      {/* Cabecera */}
       <div className="flex items-center justify-between mb-8 flex-shrink-0">
         <div className="flex items-center">
           <button
@@ -100,14 +99,8 @@ export default function CierreCaja() {
           </div>
         </div>
       </div>
-
-      {/* Contenido principal */}
       <div className="flex-1 flex gap-6 w-full max-w-7xl mx-auto">
-
-        {/* Columna izquierda */}
         <div className="w-[48%] flex flex-col gap-6 h-full">
-
-          {/* Apertura */}
           <div className="bg-white rounded-[16px] shadow-sm p-8 flex-shrink-0">
             <h2 className="text-[#2C3E50] text-xl font-bold mb-6 flex items-center">
               <Unlock className="w-6 h-6 mr-3 text-[#F39C12]" /> 1. Apertura de Caja
@@ -130,8 +123,6 @@ export default function CierreCaja() {
               </button>
             </div>
           </div>
-
-          {/* Resumen del turno */}
           <div className="bg-white rounded-[16px] shadow-sm p-8 flex-1 flex flex-col">
             <h2 className="text-[#34495E] text-xl font-bold mb-6">Resumen del turno</h2>
             <div className="space-y-4 flex-1">
@@ -153,11 +144,7 @@ export default function CierreCaja() {
             </div>
           </div>
         </div>
-
-        {/* Columna derecha */}
         <div className="flex-1 flex flex-col gap-6 h-full">
-
-          {/* Cierre */}
           <div className="bg-white rounded-[16px] shadow-sm p-8 flex-1 flex flex-col">
             <h2 className="text-[#2C3E50] text-xl font-bold mb-6 flex items-center">
               <Lock className="w-6 h-6 mr-3 text-[#F39C12]" /> 2. Cierre de Caja
@@ -185,8 +172,6 @@ export default function CierreCaja() {
               <Lock className="w-6 h-6 mr-3" /> CERRAR CAJA
             </button>
           </div>
-
-          {/* Indicador de estado */}
           <div className="bg-[#F8F9FA] rounded-[16px] border-2 border-[#E0E6ED] p-6 flex items-center flex-shrink-0 h-[100px]">
             {estaAbierta ? (
               <>

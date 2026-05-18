@@ -28,7 +28,7 @@ import java.util.Map;
 @Service
 public class VerifactuXmlService {
 
-    // Datos del fabricante del software — actualizar con los reales en producción
+    // Datos del fabricante del software
     private static final String NIF_FABRICANTE    = "A39200019";
     private static final String NOMBRE_FABRICANTE = "CERTIFICADO ENTIDAD PRUEBAS";
     private static final String ID_SISTEMA        = "01";
@@ -42,7 +42,7 @@ public class VerifactuXmlService {
         String fechaExpedicion = venta.getFecha().format(formatoFecha);
         String fechaHoraHuso   = venta.getFecha().atZone(ZoneId.systemDefault()).format(formatoIso);
 
-        // Calculamos y fijamos la huella SHA-256 antes de generar el XML
+        // Cálculo huella SHA-256 antes de generar el XML
         String huella = VerifactuUtils.generarHashVerifactu(
                 negocio.getCif(), venta.getNumeroFactura(), venta.getFecha(),
                 venta.getTipoFactura(), venta.getCuotaIvaTotal(), venta.getTotal(),
@@ -55,8 +55,7 @@ public class VerifactuXmlService {
         String cuotaTotal     = String.format(Locale.US, "%.2f", venta.getCuotaIvaTotal());
         String importeTotal   = String.format(Locale.US, "%.2f", venta.getTotal());
 
-        // Estructura oficial RegFactuSistemaFacturacion confirmada por la AEAT:
-        // Cabecera + RegistroFactura > RegistroAlta
+        // Estructura oficial RegFactuSistemaFacturacion
         return "<sum:RegFactuSistemaFacturacion" +
                 " xmlns:sum=\"https://www2.agenciatributaria.gob.es/static_files/common/internet/dep/aplicaciones/es/aeat/tike/cont/ws/SuministroLR.xsd\"" +
                 " xmlns:sum1=\"https://www2.agenciatributaria.gob.es/static_files/common/internet/dep/aplicaciones/es/aeat/tike/cont/ws/SuministroInformacion.xsd\"" +
@@ -103,8 +102,7 @@ public class VerifactuXmlService {
                 "</sum:RegFactuSistemaFacturacion>";
     }
 
-    // Valida el XML generado contra el esquema XSD oficial de la AEAT.
-    // Los archivos XSD deben estar en src/main/resources/schemas/
+    // Validar el XML generado contra el esquema XSD oficial de la AEAT
     public boolean validarXmlContraEsquema(String xml) {
         try (InputStream xsdStream = getClass().getResourceAsStream("/schemas/SuministroLR.xsd")) {
             if (xsdStream == null) {

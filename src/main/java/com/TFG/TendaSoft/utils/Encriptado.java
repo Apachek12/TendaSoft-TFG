@@ -6,8 +6,6 @@ import jakarta.persistence.Converter;
 import org.springframework.security.crypto.encrypt.Encryptors;
 
 // Converter JPA que cifra/descifra automáticamente la contraseña del certificado en BD.
-// Las claves vienen de application.properties a través de EncriptadoConfig,
-// que actúa como puente ya que los @Converter JPA no admiten inyección de Spring directamente.
 @Converter
 public class Encriptado implements AttributeConverter<String, String> {
 
