@@ -4,7 +4,7 @@ import {
 } from 'lucide-react';
 
 export default function ModalAñadirImpresora({ isOpen, onClose }) {
-  const [paso, setPaso] = useState('inicio'); // 'inicio' | 'buscando' | 'configurar' | 'exito'
+  const [paso, setPaso] = useState('inicio');
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState('');
   const [listaImpresoras, setListaImpresoras] = useState([]);
@@ -96,7 +96,6 @@ export default function ModalAñadirImpresora({ isOpen, onClose }) {
             </div>
           )}
 
-          {/* Paso 1: inicio */}
           {paso === 'inicio' && (
             <div className="text-center space-y-6 py-4">
               <div className="w-20 h-20 bg-slate-50 text-slate-400 rounded-full flex items-center justify-center mx-auto">
@@ -117,7 +116,6 @@ export default function ModalAñadirImpresora({ isOpen, onClose }) {
             </div>
           )}
 
-          {/* Paso 2: buscando */}
           {paso === 'buscando' && (
             <div className="py-12 flex flex-col items-center justify-center text-center">
               <Loader2 size={48} className="text-[#00796B] animate-spin mb-4" />
@@ -125,7 +123,6 @@ export default function ModalAñadirImpresora({ isOpen, onClose }) {
             </div>
           )}
 
-          {/* Paso 3: configurar */}
           {paso === 'configurar' && (
             <div className="space-y-6 animate-in slide-in-from-right-4">
               <div className="space-y-1">
@@ -203,7 +200,6 @@ export default function ModalAñadirImpresora({ isOpen, onClose }) {
             </div>
           )}
 
-          {/* Paso 4: éxito */}
           {paso === 'exito' && (
             <div className="py-10 flex flex-col items-center justify-center text-center animate-in zoom-in">
               <div className="w-20 h-20 bg-green-100 text-green-500 rounded-full flex items-center justify-center mb-6">

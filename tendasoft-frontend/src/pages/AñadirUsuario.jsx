@@ -18,7 +18,7 @@ export default function ModalAñadirUsuario({ isOpen, onClose, onSuccess, usuari
       setFormData({
         nombreUsuario:  usuarioEdit.nombreUsuario || '',
         nombreReal:     usuarioEdit.nombreReal || '',
-        hashContrasena: '', // No pre-rellenar la contraseña por seguridad
+        hashContrasena: '',
         rol:            usuarioEdit.rol || 'VENDEDOR'
       });
     } else {
@@ -34,7 +34,7 @@ export default function ModalAñadirUsuario({ isOpen, onClose, onSuccess, usuari
       if (usuarioEdit) {
         const id = usuarioEdit.idUsuario || usuarioEdit.id;
         const payload = { ...formData };
-        // Si la contraseña viene vacía no la enviamos — el backend la preserva
+        // Si la contraseña viene vacía no se envía
         if (!payload.hashContrasena) delete payload.hashContrasena;
         await axios.put(`http://localhost:8080/api/usuarios/${id}`, payload);
       } else {

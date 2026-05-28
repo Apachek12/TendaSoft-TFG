@@ -11,7 +11,7 @@ import java.util.Optional;
 @Repository
 public interface CierreCajaRepository extends JpaRepository<CierreCaja, Long> {
 
-    // Devuelve la caja activa del usuario (sin fecha de cierre)
+    // Devuelve la caja activa del usuario sin fecha de cierre
     @Query("SELECT c FROM CierreCaja c WHERE c.usuario.idUsuario = :usuarioId AND c.fechaCierre IS NULL")
     Optional<CierreCaja> buscarCajaAbiertaDeUsuario(@Param("usuarioId") Integer usuarioId);
 }

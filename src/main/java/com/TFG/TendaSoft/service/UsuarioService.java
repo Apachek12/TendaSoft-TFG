@@ -32,8 +32,7 @@ public class UsuarioService {
         return usuarioRepository.save(usuario);
     }
 
-    // Comprueba credenciales devolviendo el usuario si son correctas, o lanzando excepción si no.
-    // El controller delega aquí para no exponer lógica de autenticación en la capa HTTP.
+    // Para no exponer la lógica en HTTP
     public Usuario autenticar(String username, String password) {
         Usuario usuario = buscarPorUsername(username);
 

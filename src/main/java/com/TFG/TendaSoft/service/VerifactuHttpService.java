@@ -26,34 +26,34 @@ import java.security.KeyStore;
 public class VerifactuHttpService {
 
     public String enviarFacturaAEAT(String xmlFirmado, String rutaCert, String passCert) throws Exception {
-        // 1. Cargar el certificado .p12 (KeyStore)
+        // Cargar el certificado .p12 (KeyStore)
         KeyStore keyStore = KeyStore.getInstance("PKCS12");
         try (FileInputStream instream = new FileInputStream(new File(rutaCert))) {
             keyStore.load(instream, passCert.toCharArray());
         }
 
-        // 2. Crear el SSLContext con el material del certificado (mTLS)
+        // Crear el SSLContext
         SSLContext sslContext = SSLContexts.custom()
                 .loadKeyMaterial(keyStore, passCert.toCharArray())
                 .build();
 
-        // 3. Crear sockets SSL
+        // Crear sockets SSL
         SSLConnectionSocketFactory sslSocketFactory = SSLConnectionSocketFactoryBuilder.create()
                 .setSslContext(sslContext)
                 .build();
 
-        // 4. Configurar el gestor de conexiones
+        // Configurar el gestor de conexiones
         PoolingHttpClientConnectionManager cm = PoolingHttpClientConnectionManagerBuilder.create()
                 .setSSLSocketFactory(sslSocketFactory)
                 .build();
 
-        // 5. Construir el cliente HTTP y enviar
+        // Construir el cliente HTTP y enviar
         try (CloseableHttpClient httpClient = HttpClients.custom().setConnectionManager(cm).build()) {
             String urlAeat = "https://prewww1.aeat.es/wlpl/TIKE-CONT/ws/SistemaFacturacion/VerifactuSOAP";
             HttpPost post = new HttpPost(urlAeat);
             post.setHeader("SOAPAction", "");
 
-            // Limpiamos el prólogo XML para evitar doble declaración dentro del SOAP envelope
+            // Limpiar prólogo XML para evitar doble declaración dentro del SOAP envelope
             String xmlLimpio = xmlFirmado
                     .replace("<?xml version=\"1.0\" encoding=\"UTF-8\"?>", "")
                     .replace("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>", "")
@@ -74,7 +74,7 @@ public class VerifactuHttpService {
 
             post.setEntity(new StringEntity(soapEnvelope, ContentType.create("text/xml", StandardCharsets.UTF_8)));
 
-            // 6. Ejecutar y devolver la respuesta
+            // Ejecutar y devolver la respuesta
             try (CloseableHttpResponse response = httpClient.execute(post)) {
                 String respuesta = EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8);
                 log.debug("Respuesta AEAT recibida (longitud: {} chars)", respuesta.length());

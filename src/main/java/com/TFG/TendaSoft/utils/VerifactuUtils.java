@@ -21,7 +21,6 @@ public class VerifactuUtils {
         String huellaAnterior = (hashAnterior == null || hashAnterior.equals("INICIO-SISTEMA"))
                 ? "" : hashAnterior;
 
-        // Formato exacto confirmado por la AEAT
         String cadena =
                 "IDEmisorFactura=" + nifEmisor +
                         "&NumSerieFactura=" + numFactura +
@@ -34,7 +33,6 @@ public class VerifactuUtils {
         return calcularSHA256(cadena);
     }
 
-    // Siempre 2 decimales
     private static String formatearImporte(BigDecimal importe) {
         return importe.setScale(2, RoundingMode.HALF_UP).toPlainString();
     }

@@ -13,7 +13,6 @@ export default function Topbar({ rol }) {
   const [verifactuActivo, setVerifactuActivo]       = useState(false);
   const [cargandoEstado, setCargandoEstado]         = useState(true);
 
-  // Extraído como callback para poder llamarlo también tras guardar la configuración
   const comprobarVerifactu = useCallback(async () => {
     setCargandoEstado(true);
     try {
@@ -33,12 +32,10 @@ export default function Topbar({ rol }) {
   return (
     <div className="h-16 bg-white border-b border-gray-200 flex justify-between items-center px-6 shrink-0 z-40">
 
-      {/* Logo */}
       <div className="flex items-center">
         <img src="/src/logo-tendasoft.png" alt="Logo" className="w-8 h-8 object-contain" />
       </div>
 
-      {/* Indicador de estado VeriFactu */}
       {!cargandoEstado && (
         <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center shadow-sm transition-colors ${
           verifactuActivo
@@ -53,7 +50,6 @@ export default function Topbar({ rol }) {
         </div>
       )}
 
-      {/* Acciones */}
       <div className="flex items-center space-x-5 text-gray-400">
         {rol === 'ADMIN' && (
           <>
@@ -73,7 +69,6 @@ export default function Topbar({ rol }) {
         />
       </div>
 
-      {/* Modales — solo renderizamos ConfiguracionNegocio si es ADMIN */}
       {rol === 'ADMIN' && (
         <ConfiguracionNegocioModal
           isOpen={isModalOpen}

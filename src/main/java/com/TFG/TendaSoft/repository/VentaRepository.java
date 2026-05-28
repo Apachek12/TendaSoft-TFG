@@ -14,14 +14,14 @@ import java.util.Optional;
 @Repository
 public interface VentaRepository extends JpaRepository<Venta, Long> {
 
-    // Suma el total de ventas de un usuario desde una fecha dada (para el cierre de caja)
+    // Suma el total de ventas de un usuario desde una fecha dada
     @Query("SELECT COALESCE(SUM(v.total), 0) FROM Venta v WHERE v.usuario.idUsuario = :usuarioId AND v.fecha >= :fechaApertura")
     BigDecimal calcularTotalVentasDesde(
             @Param("usuarioId") Integer usuarioId,
             @Param("fechaApertura") LocalDateTime fechaApertura
     );
 
-    // Igual que el anterior pero filtrado por método de pago
+    // Filtrado por método de pago
     @Query("SELECT COALESCE(SUM(v.total), 0) FROM Venta v WHERE v.usuario.idUsuario = :usuarioId AND v.fecha >= :fechaApertura AND v.metodoPago = :metodo")
     BigDecimal calcularTotalPorMetodo(
             @Param("usuarioId") Integer usuarioId,
@@ -32,10 +32,10 @@ public interface VentaRepository extends JpaRepository<Venta, Long> {
     // Encadenamiento VeriFactu: última factura aceptada por la AEAT
     Optional<Venta> findFirstByEstadoVerifactuOrderByIdDesc(String estadoVerifactu);
 
-    // Numeración: última factura con un prefijo dado (ej. "FAC-2026")
+    // Numeración: última factura
     Optional<Venta> findFirstByNumeroFacturaStartingWithOrderByIdDesc(String prefijo);
 
-    // Búsqueda exacta por número de factura (usada en el ancla del DataInitializer)
+    // Búsqueda exacta por número de factura
     Optional<Venta> findByNumeroFactura(String numeroFactura);
 
     List<Venta> findByFechaBetweenOrderByFechaDesc(LocalDateTime inicio, LocalDateTime fin);

@@ -11,7 +11,7 @@ const API = 'http://localhost:8080';
 export default function Dashboard() {
   const navigate      = useNavigate();
   const [usuario, setUsuario] = useState(null);
-  // Ref para evitar que el toast de stock se lance dos veces en el montaje en StrictMode
+  // Ref para evitar que el toast de stock se lance dos veces
   const toastLanzado = useRef(false);
 
   useEffect(() => {
@@ -26,7 +26,7 @@ export default function Dashboard() {
     }
   }, [navigate]);
 
-  // Muestra un aviso si hay productos con stock bajo. Solo una vez por sesión de navegador.
+  // Muestra un aviso si hay productos con stock bajo
   const verificarStock = async () => {
     if (sessionStorage.getItem('stockAlertaMostrada')) return;
     try {

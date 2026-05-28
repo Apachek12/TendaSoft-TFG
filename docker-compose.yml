@@ -21,7 +21,7 @@ services:
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: root
     volumes:
-      - C:/Users/anto/Desktop/U/1. TFG/TendaSoft-TFG/config/certs:/app/config/certs
+      - ./config/certs:/app/config/certs
 
 volumes:
   mysql_data:

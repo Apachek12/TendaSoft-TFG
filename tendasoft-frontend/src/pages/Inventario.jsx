@@ -137,7 +137,6 @@ export default function Inventario() {
       <Toaster position="top-right" />
       <div className="max-w-6xl mx-auto">
 
-        {/* Cabecera */}
         <div className="flex justify-between items-center mb-10">
           <div className="flex items-center">
             <button onClick={() => navigate('/dashboard')} className="mr-4 p-2 text-slate-500 hover:bg-slate-200 hover:text-slate-800 rounded-full transition-all">
@@ -165,7 +164,6 @@ export default function Inventario() {
           </div>
         </div>
 
-        {/* Buscador */}
         <div className="relative mb-8 max-w-2xl mx-auto">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
           <input
@@ -177,7 +175,6 @@ export default function Inventario() {
           />
         </div>
 
-        {/* Listado jerárquico */}
         {!cargando && !error && (
           <div className="space-y-4">
             {categoriasPrincipales.map(catPadre => {
@@ -189,7 +186,6 @@ export default function Inventario() {
               return (
                 <div key={idPadre} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden transition-all">
 
-                  {/* Fila categoría padre */}
                   <div className="flex items-center justify-between bg-slate-100/80 p-4 border-b border-slate-200">
                     <div className="flex items-center cursor-pointer flex-1" onClick={() => toggleCategoria(idPadre)}>
                       {categoriasAbiertas[idPadre]
@@ -249,7 +245,6 @@ export default function Inventario() {
                         );
                       })}
 
-                      {/* Productos directos de la categoría padre */}
                       {(catPadre.productos || [])
                         .filter(p =>
                           p.nombre.toLowerCase().includes(busqueda.toLowerCase()) &&
@@ -296,7 +291,6 @@ export default function Inventario() {
   );
 }
 
-// Botones de acción de una fila de categoría (importar, editar, eliminar)
 function AccionesFila({ onImportar, onEditar, onEliminar, size = 5, dimmed = false }) {
   const base = dimmed ? 'text-slate-300' : 'text-slate-400';
   return (
@@ -314,7 +308,6 @@ function AccionesFila({ onImportar, onEditar, onEliminar, size = 5, dimmed = fal
   );
 }
 
-// Fila de producto dentro del inventario
 function ProductoFila({ prod, indent, onEdit, onToggleStatus }) {
   const [imgError, setImgError] = useState(false);
   return (
