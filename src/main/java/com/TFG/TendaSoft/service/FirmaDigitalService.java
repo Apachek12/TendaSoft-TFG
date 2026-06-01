@@ -1,5 +1,6 @@
 package com.TFG.TendaSoft.service;
 
+import com.TFG.TendaSoft.utils.VerifactuUtils;
 import org.apache.xml.security.Init;
 import org.apache.xml.security.signature.XMLSignature;
 import org.apache.xml.security.transforms.Transforms;
@@ -20,9 +21,12 @@ import java.nio.charset.StandardCharsets;
 import java.security.KeyStore;
 import java.security.PrivateKey;
 import java.security.cert.X509Certificate;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 public class FirmaDigitalService {
+    private static final Logger logger = LoggerFactory.getLogger(VerifactuUtils.class);
 
     static {
         Init.init();
@@ -64,7 +68,14 @@ public class FirmaDigitalService {
 
             StringWriter writer = new StringWriter();
             transformer.transform(new DOMSource(doc), new StreamResult(writer));
-            return writer.toString();
+            String xmlFirmado = writer.toString();
+
+            // 3. Volcado definitivo del XML en consola
+            logger.info("==================== REPOSITORIO XML - DOCUMENTO FIRMADO ====================");
+            System.out.println(xmlFirmado);
+            logger.info("=============================================================================");
+
+            return xmlFirmado;
 
         } catch (Exception e) {
             throw new RuntimeException("Error al firmar el XML: " + e.getMessage(), e);

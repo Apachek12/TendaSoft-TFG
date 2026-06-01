@@ -39,4 +39,6 @@ public interface VentaRepository extends JpaRepository<Venta, Long> {
     Optional<Venta> findByNumeroFactura(String numeroFactura);
 
     List<Venta> findByFechaBetweenOrderByFechaDesc(LocalDateTime inicio, LocalDateTime fin);
+
+    Optional<Venta> findTopByOrderByIdDesc();
 }

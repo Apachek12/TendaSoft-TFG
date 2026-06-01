@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.LinkedHashMap;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -47,10 +48,10 @@ public class VentaService {
         venta.setFecha(LocalDateTime.now());
         if (venta.getTipoFactura() == null) venta.setTipoFactura("F2");
 
-        // Encadenamiento VeriFactu: enlazado a la última factura aceptada
-        Optional<Venta> ultimaCorrecta = ventaRepository.findFirstByEstadoVerifactuOrderByIdDesc("CORRECTO");
-        if (ultimaCorrecta.isPresent()) {
-            Venta anterior = ultimaCorrecta.get();
+        // Encadenamiento VeriFactu: enlazado a la última factura
+        Optional<Venta> ultimaVenta = ventaRepository.findTopByOrderByIdDesc();
+        if (ultimaVenta.isPresent()) {
+            Venta anterior = ultimaVenta.get();
             venta.setHashAnterior(anterior.getHashVerifactu());
             venta.setNumeroFacturaAnterior(anterior.getNumeroFactura());
             venta.setFechaAnterior(anterior.getFecha());
@@ -189,6 +190,7 @@ public class VentaService {
                     .ticketMedio(BigDecimal.ZERO)
                     .ventasPorMetodoPago(new HashMap<>())
                     .productosVendidos(0L)
+                    .productosMasVendidos(new HashMap<>()) // Vacío si no hay ventas
                     .build();
         }
 
@@ -204,12 +206,34 @@ public class VentaService {
                         Collectors.reducing(BigDecimal.ZERO, VentaListadoDTO::getTotal, BigDecimal::add)
                 ));
 
+        Long productosVendidos = ventas.stream()
+                .flatMap(v -> v.getLineas().stream())
+                .mapToLong(LineaVentaDTO::getCantidad)
+                .sum();
+
+        Map<String, Long> productosMasVendidos = ventas.stream()
+                .flatMap(v -> v.getLineas().stream())
+                .collect(Collectors.groupingBy(
+                        LineaVentaDTO::getNombreProducto,
+                        Collectors.summingLong(LineaVentaDTO::getCantidad)
+                ))
+                .entrySet().stream()
+                .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
+                .limit(3)
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        Map.Entry::getValue,
+                        (e1, e2) -> e1,
+                        LinkedHashMap::new
+                ));
+
         return EstadisticasDTO.builder()
                 .totalFacturado(totalFacturado)
                 .totalTickets(totalTickets)
                 .ticketMedio(ticketMedio)
                 .ventasPorMetodoPago(ventasPorMetodo)
-                .productosVendidos(0L)
+                .productosVendidos(productosVendidos)
+                .productosMasVendidos(productosMasVendidos)
                 .build();
     }
 

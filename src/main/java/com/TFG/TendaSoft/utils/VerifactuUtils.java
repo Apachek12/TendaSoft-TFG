@@ -6,9 +6,11 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class VerifactuUtils {
-
+    private static final Logger logger = LoggerFactory.getLogger(VerifactuUtils.class);
     // Formato de fecha exacto que usa la AEAT
     private static final DateTimeFormatter FORMATO_FECHA = DateTimeFormatter.ofPattern("dd-MM-yyyy");
 
@@ -30,6 +32,8 @@ public class VerifactuUtils {
                         "&ImporteTotal=" + formatearImporte(importeTotal) +
                         "&Huella=" + huellaAnterior +
                         "&FechaHoraHusoGenRegistro=" + fechaHoraHuso;
+
+        logger.info("Cadena normalizada: {}", cadena);
         return calcularSHA256(cadena);
     }
 

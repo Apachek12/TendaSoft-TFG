@@ -14,4 +14,5 @@ public class EstadisticasDTO {
     private BigDecimal ticketMedio;
     private Map<String, BigDecimal> ventasPorMetodoPago;
     private Long productosVendidos;
+    private Map<String, Long> productosMasVendidos;
 }

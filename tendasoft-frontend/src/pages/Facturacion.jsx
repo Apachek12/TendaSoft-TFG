@@ -47,7 +47,9 @@ export default function Facturacion() {
           medio:    data.ticketMedio    || 0,
           efectivo: data.ventasPorMetodoPago?.EFECTIVO || 0,
           tarjeta:  data.ventasPorMetodoPago?.TARJETA  || 0,
-          otros:    data.ventasPorMetodoPago?.OTROS    || 0
+          otros:    data.ventasPorMetodoPago?.OTROS    || 0,
+          productosVendidos: data.productosVendidos    || 0,
+          topProductos: data.productosMasVendidos      || {}
         });
         setTickets([]);
         toast.success('Resumen generado');
@@ -234,24 +236,72 @@ export default function Facturacion() {
             ) : resumen ? (
               <div className="bg-white rounded-[24px] shadow-sm p-10 animate-in zoom-in-95 duration-300">
                 <h2 className="text-[#34495E] text-2xl font-black mb-1">Resumen Financiero</h2>
-                <p className="text-[#95A5A6] font-bold mb-10 uppercase tracking-widest text-xs">Filtro: {modo}</p>
-                <div className="bg-[#F8F9FA] rounded-[24px] p-10 text-center mb-10 border-2 border-dashed border-gray-200">
-                  <p className="text-[#7F8C8D] text-[13px] font-black tracking-[0.3em] uppercase mb-3">TOTAL FACTURADO (PVP)</p>
-                  <p className="text-[#00796B] text-6xl font-black">{(resumen.total || 0).toFixed(2)} €</p>
+                <p className="text-[#95A5A6] font-bold mb-8 uppercase tracking-widest text-xs">Filtro: {modo}</p>
+
+                {/* Total Facturado */}
+                <div className="bg-[#F8F9FA] rounded-[24px] p-8 text-center mb-6 border-2 border-dashed border-gray-200">
+                  <p className="text-[#7F8C8D] text-[12px] font-black tracking-[0.3em] uppercase mb-2">TOTAL FACTURADO (PVP)</p>
+                  <p className="text-[#00796B] text-5xl font-black">{(resumen.total || 0).toFixed(2)} €</p>
                 </div>
-                <div className="grid grid-cols-2 gap-10">
+
+                {/* Tickets, Media y Unidades Totales */}
+                <div className="grid grid-cols-3 gap-4 mb-8 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                  <div className="text-center border-r border-slate-200">
+                    <p className="text-[#7F8C8D] text-[10px] font-black uppercase mb-1">Nº Tickets</p>
+                    <p className="text-[#2C3E50] text-lg font-black">{resumen.count}</p>
+                  </div>
+                  <div className="text-center border-r border-slate-200">
+                    <p className="text-[#7F8C8D] text-[10px] font-black uppercase mb-1">Ticket Medio</p>
+                    <p className="text-[#2C3E50] text-lg font-black">{(resumen.medio || 0).toFixed(2)} €</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-[#7F8C8D] text-[10px] font-black uppercase mb-1">Uds. Vendidas</p>
+                    <p className="text-[#00796B] text-lg font-black">{resumen.productosVendidos} uds</p>
+                  </div>
+                </div>
+
+                {/* Productos Más Vendidos */}
+                <div className="mb-8">
+                  <p className="text-[#7F8C8D] text-[11px] font-black uppercase mb-3 tracking-wider">Productos más vendidos:</p>
+                  {resumen.topProductos && Object.keys(resumen.topProductos).length > 0 ? (
+                    <div className="space-y-2">
+                      {Object.entries(resumen.topProductos).map(([producto, cantidad], index) => (
+                        <div key={producto} className="flex items-center justify-between bg-gray-50 hover:bg-slate-100/80 px-4 py-3 rounded-xl border border-gray-100 transition-all">
+                          <div className="flex items-center space-x-3">
+                            <span className={`w-6 h-6 flex items-center justify-center rounded-full text-[10px] font-black ${
+                              index === 0 ? 'bg-amber-100 text-amber-700' :
+                              index === 1 ? 'bg-slate-200 text-slate-700' : 'bg-orange-100 text-orange-700'
+                            }`}>
+                              {index + 1}
+                            </span>
+                            <span className="text-sm font-bold text-[#2C3E50]">{producto}</span>
+                          </div>
+                          <span className="text-xs font-black bg-[#E0F2F1] text-[#00796B] px-2.5 py-1 rounded-lg">
+                            {cantidad} uds
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-400 italic pl-1">No hay registros de artículos en este periodo.</p>
+                  )}
+                </div>
+
+                {/* Métodos de Pago */}
+                <p className="text-[#7F8C8D] text-[11px] font-black uppercase mb-4 tracking-wider">Desglose por método de pago:</p>
+                <div className="grid grid-cols-3 gap-6">
                   {[
                     { label: 'Efectivo', valor: resumen.efectivo, color: '#2ECC71' },
-                    { label: 'Tarjeta',  valor: resumen.tarjeta,  color: '#1976D2' }
+                    { label: 'Tarjeta',  valor: resumen.tarjeta,  color: '#1976D2' },
+                    { label: 'Otros',    valor: resumen.otros,    color: '#95A5A6' }
                   ].map(({ label, valor, color }) => (
-                    <div key={label} style={{ borderLeftColor: color }} className="border-l-4 pl-6">
-                      <p className="text-[#7F8C8D] text-[11px] font-black uppercase mb-1">{label}</p>
-                      <p className="text-[#2C3E50] text-2xl font-black">{(valor || 0).toFixed(2)} €</p>
+                    <div key={label} style={{ borderLeftColor: color }} className="border-l-4 pl-4">
+                      <p className="text-[#7F8C8D] text-[10px] font-black uppercase mb-1">{label}</p>
+                      <p className="text-[#2C3E50] text-xl font-black">{(valor || 0).toFixed(2)} €</p>
                     </div>
                   ))}
                 </div>
               </div>
-
             ) : (
               <div className="h-full flex flex-col items-center justify-center text-[#95A5A6] bg-white rounded-[24px] border-2 border-dashed border-gray-100">
                 <BarChart3 size={64} className="mb-4 opacity-10" />

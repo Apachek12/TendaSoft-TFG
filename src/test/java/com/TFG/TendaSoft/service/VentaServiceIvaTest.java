@@ -20,8 +20,8 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class VentaServiceIvaTest {
 
-    @Mock private VentaRepository          ventaRepository;
-    @Mock private LineaVentaRepository     lineaVentaRepository;
+    @Mock private VentaRepository        ventaRepository;
+    @Mock private LineaVentaRepository   lineaVentaRepository;
     @Mock private ProductoRepository       productoRepository;
     @Mock private DatosNegocioRepository   datosNegocioRepository;
     @Mock private VerifactuXmlService      xmlService;
@@ -99,7 +99,9 @@ class VentaServiceIvaTest {
         DatosNegocio negocio = negocioPrueba();
 
         when(datosNegocioRepository.findTopByOrderByIdAsc()).thenReturn(Optional.of(negocio));
-        when(ventaRepository.findFirstByEstadoVerifactuOrderByIdDesc("CORRECTO")).thenReturn(Optional.empty());
+
+        when(ventaRepository.findTopByOrderByIdDesc()).thenReturn(Optional.empty());
+
         when(ventaRepository.findFirstByNumeroFacturaStartingWithOrderByIdDesc(anyString())).thenReturn(Optional.empty());
         when(productoRepository.findById("P004")).thenReturn(Optional.of(prod21));
         when(productoRepository.findById("P005")).thenReturn(Optional.of(prod10));
@@ -133,6 +135,34 @@ class VentaServiceIvaTest {
     void registrarVenta_nula_debeLanzarExcepcion() {
         assertThrows(RuntimeException.class,
                 () -> ventaService.registrarNuevaVenta(null, List.of()));
+    }
+
+    @Test
+    void registrarVenta_conFacturaAnterior_debeEncadenarHuellasCriptograficas() throws Exception {
+        Venta facturaPrevia = new Venta();
+        facturaPrevia.setNumeroFactura("FAC-2026-0066");
+        facturaPrevia.setHashVerifactu("HASH_PADRE_99998888");
+        facturaPrevia.setEstadoVerifactu("ERROR_AEAT"); // Incluso con error, debe encadenar
+
+        Producto producto = productoProductoPrueba("P001", new BigDecimal("1.21"), new BigDecimal("21.00"));
+        LineaVenta linea = lineaVenta(producto, 1);
+        Venta nuevaVenta = ventaBase();
+        DatosNegocio negocio = negocioPrueba();
+
+        when(datosNegocioRepository.findTopByOrderByIdAsc()).thenReturn(Optional.of(negocio));
+
+        when(ventaRepository.findTopByOrderByIdDesc()).thenReturn(Optional.of(facturaPrevia));
+
+        when(ventaRepository.findFirstByNumeroFacturaStartingWithOrderByIdDesc(anyString())).thenReturn(Optional.empty());
+        when(productoRepository.findById(producto.getCodigoBarras())).thenReturn(Optional.of(producto));
+        when(ventaRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(lineaVentaRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        Venta resultado = ventaService.registrarNuevaVenta(nuevaVenta, List.of(linea));
+
+        assertNotNull(resultado.getHashAnterior());
+        assertEquals("HASH_PADRE_99998888", resultado.getHashAnterior());
+        verify(ventaRepository).findTopByOrderByIdDesc();
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
@@ -171,7 +201,7 @@ class VentaServiceIvaTest {
 
     private void configurarMocks(Producto producto, DatosNegocio negocio, Venta venta) {
         when(datosNegocioRepository.findTopByOrderByIdAsc()).thenReturn(Optional.of(negocio));
-        when(ventaRepository.findFirstByEstadoVerifactuOrderByIdDesc("CORRECTO")).thenReturn(Optional.empty());
+        when(ventaRepository.findTopByOrderByIdDesc()).thenReturn(Optional.empty());
         when(ventaRepository.findFirstByNumeroFacturaStartingWithOrderByIdDesc(anyString())).thenReturn(Optional.empty());
         when(productoRepository.findById(producto.getCodigoBarras())).thenReturn(Optional.of(producto));
         when(ventaRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));

@@ -82,6 +82,14 @@ class VentaRepositoryTest {
         assertFalse(resultado.isPresent());
     }
 
+    @Test
+    void findTopByOrderByIdDesc_debeDevolverLaUltimaVentaAbsolutaSinImportarEstado() {
+        Optional<Venta> ultimaAbsoluta = ventaRepository.findTopByOrderByIdDesc();
+
+        assertTrue(ultimaAbsoluta.isPresent());
+        assertEquals("FAC-2026-0004", ultimaAbsoluta.get().getNumeroFactura());
+    }
+
     // ── Helper ───────────────────────────────────────────────────────────────
 
     private void guardarVenta(String numero, String estado, LocalDateTime fecha, String hash) {
