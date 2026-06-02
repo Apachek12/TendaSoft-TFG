@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { X, Search, Check, Image as ImageIcon, CornerDownRight } from 'lucide-react';
 
-const API = 'http://localhost:8080';
+const API = import.meta.env.VITE_API_URL;
 
 export default function ModalImportarProductos({ isOpen, onClose, onSuccess, categoriaEdit }) {
   const [loading, setLoading]                         = useState(false);

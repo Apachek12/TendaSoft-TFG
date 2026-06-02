@@ -12,16 +12,16 @@ import ModalAddCategoria from './AñadirCategoria';
 import ModalImportarProductos from './ImportarProductos';
 import './Avisos.css';
 
+const API = import.meta.env.VITE_API_URL;
+
 export default function Inventario() {
   const navigate = useNavigate();
-
   const [busqueda, setBusqueda]                   = useState('');
   const [categorias, setCategorias]               = useState([]);
   const [cargando, setCargando]                   = useState(true);
   const [error, setError]                         = useState('');
   const [categoriasAbiertas, setCategoriasAbiertas] = useState({});
   const [mostrarArchivados, setMostrarArchivados] = useState(false);
-
   const [modalProdOpen, setModalProdOpen]   = useState(false);
   const [modalCatOpen, setModalCatOpen]     = useState(false);
   const [modalImportOpen, setModalImportOpen] = useState(false);
@@ -38,7 +38,7 @@ export default function Inventario() {
   const cargarInventario = async (mensajeExito = null) => {
     try {
       setCargando(true);
-      const { data } = await axios.get('http://localhost:8080/api/categorias');
+      const { data } = await axios.get(`${API}/api/categorias`);
       setCategorias(data);
       if (mensajeExito) toast.success(mensajeExito);
     } catch {
@@ -53,7 +53,6 @@ export default function Inventario() {
     setCategoriasAbiertas(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
-  // Muestra un toast de confirmación antes de archivar/desarchivar un producto
   const handleToggleProductoStatus = (e, prod) => {
     e.stopPropagation();
     const esActivo = prod.activo !== false;
@@ -77,7 +76,7 @@ export default function Inventario() {
           <button onClick={async () => {
             toast.dismiss(t.id);
             try {
-              await axios.delete(`http://localhost:8080/api/productos/${prod.codigoBarras}`);
+              await axios.delete(`${API}/api/productos/${prod.codigoBarras}`);
               cargarInventario(esActivo ? 'Producto deshabilitado' : 'Producto habilitado');
             } catch { toast.error('Error al cambiar estado'); }
           }} className="flex-1 px-4 py-3 bg-slate-800 text-white text-xs font-black rounded-xl hover:bg-black uppercase tracking-widest shadow-lg">
@@ -88,7 +87,6 @@ export default function Inventario() {
     ), { duration: Infinity, position: 'top-center', className: 'toast-confirmacion-centro' });
   };
 
-  // Muestra un toast de confirmación antes de eliminar una categoría
   const handleDeleteCategoria = (e, idCategoria, nombre) => {
     e.stopPropagation();
     toast((t) => (
@@ -109,7 +107,7 @@ export default function Inventario() {
           <button onClick={async () => {
             toast.dismiss(t.id);
             try {
-              await axios.delete(`http://localhost:8080/api/categorias/${idCategoria}`);
+              await axios.delete(`${API}/api/categorias/${idCategoria}`);
               cargarInventario('Categoría eliminada');
             } catch { toast.error('La categoría tiene productos asignados'); }
           }} className="flex-1 px-4 py-3 bg-red-600 text-white text-xs font-black rounded-xl hover:bg-red-700 uppercase tracking-widest shadow-lg">
@@ -136,7 +134,6 @@ export default function Inventario() {
     <div className="min-h-screen bg-slate-50 p-8 font-sans antialiased">
       <Toaster position="top-right" />
       <div className="max-w-6xl mx-auto">
-
         <div className="flex justify-between items-center mb-10">
           <div className="flex items-center">
             <button onClick={() => navigate('/dashboard')} className="mr-4 p-2 text-slate-500 hover:bg-slate-200 hover:text-slate-800 rounded-full transition-all">
@@ -163,7 +160,6 @@ export default function Inventario() {
             </button>
           </div>
         </div>
-
         <div className="relative mb-8 max-w-2xl mx-auto">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
           <input
@@ -174,7 +170,6 @@ export default function Inventario() {
             className="w-full pl-12 pr-4 py-3.5 bg-white border border-slate-200 rounded-2xl shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-300 transition-all"
           />
         </div>
-
         {!cargando && !error && (
           <div className="space-y-4">
             {categoriasPrincipales.map(catPadre => {
@@ -182,10 +177,8 @@ export default function Inventario() {
               const subcategorias = categoriasFiltradas.filter(c =>
                 (c.categoriaPadre?.id || c.categoriaPadre?.idCategoria) === idPadre
               );
-
               return (
                 <div key={idPadre} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden transition-all">
-
                   <div className="flex items-center justify-between bg-slate-100/80 p-4 border-b border-slate-200">
                     <div className="flex items-center cursor-pointer flex-1" onClick={() => toggleCategoria(idPadre)}>
                       {categoriasAbiertas[idPadre]
@@ -201,7 +194,6 @@ export default function Inventario() {
                       size={5}
                     />
                   </div>
-
                   {categoriasAbiertas[idPadre] && (
                     <div className="divide-y divide-slate-100">
                       {subcategorias.map(subcat => {
@@ -244,7 +236,6 @@ export default function Inventario() {
                           </div>
                         );
                       })}
-
                       {(catPadre.productos || [])
                         .filter(p =>
                           p.nombre.toLowerCase().includes(busqueda.toLowerCase()) &&
@@ -268,7 +259,6 @@ export default function Inventario() {
           </div>
         )}
       </div>
-
       <ModalAddProducto
         isOpen={modalProdOpen}
         onClose={() => { setModalProdOpen(false); setProdAEditar(null); }}
@@ -309,13 +299,14 @@ function AccionesFila({ onImportar, onEditar, onEliminar, size = 5, dimmed = fal
 }
 
 function ProductoFila({ prod, indent, onEdit, onToggleStatus }) {
+  const API = import.meta.env.VITE_API_URL;
   const [imgError, setImgError] = useState(false);
   return (
     <div className={`flex items-center justify-between p-4 hover:bg-slate-50/80 transition-colors ${indent} ${prod.activo === false ? 'opacity-50 grayscale' : ''}`}>
       <div className="flex items-center">
         <div className="w-12 h-12 rounded-xl flex items-center justify-center mr-4 border border-slate-200 bg-white shadow-sm overflow-hidden shrink-0">
           {prod.urlImagen && !imgError
-            ? <img src={`http://localhost:8080/uploads/${prod.urlImagen}`} alt={prod.nombre} className="w-full h-full object-cover" onError={() => setImgError(true)} />
+            ? <img src={`${API}/uploads/${prod.urlImagen}`} alt={prod.nombre} className="w-full h-full object-cover" onError={() => setImgError(true)} />
             : <ImageIcon className="text-slate-300 w-6 h-6" />
           }
         </div>

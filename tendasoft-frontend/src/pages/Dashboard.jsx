@@ -6,7 +6,7 @@ import { toast, Toaster } from 'react-hot-toast';
 import Topbar from './Topbar';
 import './Avisos.css';
 
-const API = 'http://localhost:8080';
+const API = import.meta.env.VITE_API_URL;
 
 export default function Dashboard() {
   const navigate      = useNavigate();

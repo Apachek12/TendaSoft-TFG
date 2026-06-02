@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
-const API = 'http://localhost:8080';
+const API = import.meta.env.VITE_API_URL;
 
 export default function ConfiguracionNegocioModal({ isOpen, onClose, onConfiguracionGuardada }) {
   const [vista, setVista]                   = useState('fiscal');

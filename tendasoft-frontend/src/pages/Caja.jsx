@@ -8,17 +8,21 @@ import {
 } from 'lucide-react';
 import { toast, Toaster } from 'react-hot-toast';
 
-const API = 'http://localhost:8080';
+const API = import.meta.env.VITE_API_URL;
 
 // Modal visualización ticket
 
 function ModalTicket({ ventaGuardada, lineas, total, datosNegocio, onCerrar }) {
   const fecha = new Date();
 
+  const fechaFactura = ventaGuardada?.fecha
+    ? new Date(ventaGuardada.fecha).toISOString().split('T')[0]
+    : new Date().toISOString().split('T')[0];
+
   const urlVerifactu =
     `https://www2.agenciatributaria.gob.es/wlpl/inwinv/es/es.aeat.dit.adu.eaf.j.VerificaQrFacturaEAF` +
     `?nif=${datosNegocio?.cif || ''}&numserie=${ventaGuardada?.numeroFactura || ''}` +
-    `&fecha=${fecha.toISOString().split('T')[0]}&importe=${total.toFixed(2)}`;
+    `&fecha=${fechaFactura}&importe=${total.toFixed(2)}`;
 
   const baseImpTotal = lineas.reduce((acc, item) => {
     const iva = item.porcentajeIva ?? 21;

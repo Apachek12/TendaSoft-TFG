@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { X, ChevronDown } from 'lucide-react';
 
+const API = import.meta.env.VITE_API_URL;
+
 export default function AñadirCategoria({ isOpen, onClose, onSuccess, categoriaEdit }) {
   const [loading, setLoading] = useState(false);
   const [categoriasPadre, setCategoriasPadre] = useState([]);
@@ -13,11 +15,9 @@ export default function AñadirCategoria({ isOpen, onClose, onSuccess, categoria
 
   useEffect(() => {
     if (!isOpen) return;
-
-    axios.get('http://localhost:8080/api/categorias')
+    axios.get(`${API}/api/categorias`)
       .then(res => setCategoriasPadre(res.data))
       .catch(err => console.error('Error cargando categorías:', err));
-
     if (categoriaEdit) {
       setFormData({
         nombre: categoriaEdit.nombre || '',
@@ -32,7 +32,6 @@ export default function AñadirCategoria({ isOpen, onClose, onSuccess, categoria
   const handleGuardar = async (e) => {
     e.preventDefault();
     setLoading(true);
-
     const payload = {
       nombre: formData.nombre,
       orden: 1,
@@ -40,13 +39,12 @@ export default function AñadirCategoria({ isOpen, onClose, onSuccess, categoria
         ? { id: parseInt(formData.padreId) }
         : null
     };
-
     try {
       if (categoriaEdit) {
         const id = categoriaEdit.id || categoriaEdit.idCategoria;
-        await axios.put(`http://localhost:8080/api/categorias/${id}`, payload);
+        await axios.put(`${API}/api/categorias/${id}`, payload);
       } else {
-        await axios.post('http://localhost:8080/api/categorias', payload);
+        await axios.post(`${API}/api/categorias`, payload);
       }
       onSuccess();
       onClose();
@@ -65,7 +63,6 @@ export default function AñadirCategoria({ isOpen, onClose, onSuccess, categoria
   return (
     <div className="fixed inset-0 bg-[#001D3D]/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-[24px] w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200 p-8">
-
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-[#001D3D] text-2xl font-black tracking-tight">
             {categoriaEdit ? 'Editar categoría' : 'Añadir categoría'}
@@ -74,7 +71,6 @@ export default function AñadirCategoria({ isOpen, onClose, onSuccess, categoria
             <X size={24} />
           </button>
         </div>
-
         <form onSubmit={handleGuardar} className="space-y-5">
           <input
             required
@@ -83,7 +79,6 @@ export default function AñadirCategoria({ isOpen, onClose, onSuccess, categoria
             value={formData.nombre}
             onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
           />
-
           <div className="flex items-center space-x-3 px-2">
             <span className="text-[#001D3D] font-bold">Subcategoría</span>
             <button
@@ -94,7 +89,6 @@ export default function AñadirCategoria({ isOpen, onClose, onSuccess, categoria
               <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${formData.esSubcategoria ? 'left-7' : 'left-1'}`} />
             </button>
           </div>
-
           {formData.esSubcategoria && (
             <div className="relative animate-in fade-in slide-in-from-top-2">
               <select
@@ -105,7 +99,6 @@ export default function AñadirCategoria({ isOpen, onClose, onSuccess, categoria
                 <option value="">Categoría padre</option>
                 {categoriasPadre.map(cat => {
                   const catId = cat.id || cat.idCategoria;
-                  // Evitar que una categoría se seleccione a sí misma como padre
                   if (categoriaEdit && catId === editId) return null;
                   return <option key={catId} value={catId}>{cat.nombre}</option>;
                 })}
@@ -113,7 +106,6 @@ export default function AñadirCategoria({ isOpen, onClose, onSuccess, categoria
               <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 text-[#001D3D] pointer-events-none" size={20} />
             </div>
           )}
-
           <button
             type="submit"
             disabled={loading}

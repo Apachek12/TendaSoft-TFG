@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { X, ChevronDown, Upload, Percent } from 'lucide-react';
 
+const API = import.meta.env.VITE_API_URL;
+
 const TIPOS_IVA = [
   { label: 'IVA General (21%)',       value: '21.00' },
   { label: 'IVA Reducido (10%)',      value: '10.00' },
@@ -25,11 +27,9 @@ export default function AñadirProducto({ isOpen, onClose, onSuccess, productoEd
 
   useEffect(() => {
     if (!isOpen) return;
-
-    axios.get('http://localhost:8080/api/categorias')
+    axios.get(`${API}/api/categorias`)
       .then(res => setCategorias(res.data))
       .catch(err => console.error('Error cargando categorías:', err));
-
     if (productoEdit) {
       const catId = productoEdit.categoria?.id || productoEdit.categoria?.idCategoria || '';
       setFormData({
@@ -60,18 +60,16 @@ export default function AñadirProducto({ isOpen, onClose, onSuccess, productoEd
   const handleGuardar = async (e) => {
     e.preventDefault();
     setLoading(true);
-
     const data = new FormData();
     Object.entries(formData).forEach(([key, val]) => data.append(key, val));
     if (imageFile) data.append('imagen', imageFile);
-
     try {
       if (productoEdit) {
-        await axios.put(`http://localhost:8080/api/productos/${productoEdit.codigoBarras}`, data, {
+        await axios.put(`${API}/api/productos/${productoEdit.codigoBarras}`, data, {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
       } else {
-        await axios.post('http://localhost:8080/api/productos', data, {
+        await axios.post(`${API}/api/productos`, data, {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
       }
@@ -90,7 +88,6 @@ export default function AñadirProducto({ isOpen, onClose, onSuccess, productoEd
   return (
     <div className="fixed inset-0 bg-[#001D3D]/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-[24px] w-full max-w-md shadow-2xl p-8 overflow-hidden">
-
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-[#001D3D] text-2xl font-black tracking-tight">
             {productoEdit ? 'Editar Producto' : 'Nuevo Producto'}
@@ -99,7 +96,6 @@ export default function AñadirProducto({ isOpen, onClose, onSuccess, productoEd
             <X size={24} />
           </button>
         </div>
-
         <form onSubmit={handleGuardar} className="space-y-3">
           <input
             required
@@ -108,8 +104,6 @@ export default function AñadirProducto({ isOpen, onClose, onSuccess, productoEd
             value={formData.nombre}
             onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
           />
-
-          {/* El código de barras no se puede editar una vez creado */}
           <input
             required
             readOnly={!!productoEdit}
@@ -120,7 +114,6 @@ export default function AñadirProducto({ isOpen, onClose, onSuccess, productoEd
             value={formData.codigoBarras}
             onChange={(e) => setFormData({ ...formData, codigoBarras: e.target.value })}
           />
-
           <div className="relative">
             <select
               required
@@ -136,7 +129,6 @@ export default function AñadirProducto({ isOpen, onClose, onSuccess, productoEd
             </select>
             <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 text-[#001D3D] pointer-events-none" size={18} />
           </div>
-
           <div className="grid grid-cols-2 gap-3">
             <input
               required
@@ -159,7 +151,6 @@ export default function AñadirProducto({ isOpen, onClose, onSuccess, productoEd
               <span className="absolute right-4 top-1/2 -translate-y-1/2 font-bold text-slate-400">€</span>
             </div>
           </div>
-
           <div className="relative">
             <select
               required
@@ -174,7 +165,6 @@ export default function AñadirProducto({ isOpen, onClose, onSuccess, productoEd
             <Percent className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
             <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
           </div>
-
           <div className="relative h-24 bg-[#F4F7F9] rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center overflow-hidden group transition-colors hover:border-teal-500">
             {preview ? (
               <img src={preview} alt="Vista previa" className="w-full h-full object-cover" />
@@ -188,7 +178,6 @@ export default function AñadirProducto({ isOpen, onClose, onSuccess, productoEd
             )}
             <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleImageChange} />
           </div>
-
           <button
             type="submit"
             disabled={loading}

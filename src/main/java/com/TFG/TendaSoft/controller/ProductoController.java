@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -31,6 +32,7 @@ public class ProductoController {
         return ResponseEntity.ok(productoService.buscarPorCodigo(codigoBarras));
     }
 
+    @PreAuthorize("hasAuthority('ADMIN')")
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> crearProducto(
             @RequestParam("nombre") String nombre,
@@ -50,6 +52,7 @@ public class ProductoController {
         }
     }
 
+    @PreAuthorize("hasAuthority('ADMIN')")
     @PutMapping(value = "/{codigoBarras}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> actualizarProducto(
             @PathVariable String codigoBarras,
@@ -69,6 +72,7 @@ public class ProductoController {
         }
     }
 
+    @PreAuthorize("hasAuthority('ADMIN')")
     // Soft delete: alterna el estado activo/inactivo del producto
     @DeleteMapping("/{codigoBarras}")
     public ResponseEntity<?> toggleEstadoProducto(@PathVariable String codigoBarras) {

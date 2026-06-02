@@ -4,12 +4,20 @@ import com.TFG.TendaSoft.dto.UsuarioDTO;
 import com.TFG.TendaSoft.model.Usuario;
 import com.TFG.TendaSoft.repository.UsuarioRepository;
 import com.TFG.TendaSoft.service.UsuarioService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.web.bind.annotation.*;
-
 import java.util.List;
 import java.util.Map;
 
@@ -21,6 +29,7 @@ public class UsuarioController {
     private final UsuarioService usuarioService;
     private final UsuarioRepository usuarioRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AuthenticationManager authenticationManager;
 
     @GetMapping
     public ResponseEntity<List<Usuario>> obtenerTodos() {
@@ -32,28 +41,27 @@ public class UsuarioController {
         return ResponseEntity.ok(usuarioService.buscarPorUsername(username));
     }
 
+    @PreAuthorize("hasAuthority('ADMIN')")
     @PostMapping
     public ResponseEntity<Usuario> crearUsuario(@RequestBody Usuario usuario) {
         return new ResponseEntity<>(usuarioService.crearUsuario(usuario), HttpStatus.CREATED);
     }
 
+    @PreAuthorize("hasAuthority('ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<?> actualizarUsuario(@PathVariable Integer id, @RequestBody Usuario datosActualizados) {
         return usuarioRepository.findById(id).map(usuario -> {
             usuario.setNombreReal(datosActualizados.getNombreReal());
             usuario.setNombreUsuario(datosActualizados.getNombreUsuario());
             usuario.setRol(datosActualizados.getRol());
-
-            // Solo actualizamos la contraseña si se envía una nueva (y la hasheamos)
             if (datosActualizados.getHashContrasena() != null && !datosActualizados.getHashContrasena().isEmpty()) {
                 usuario.setHashContrasena(passwordEncoder.encode(datosActualizados.getHashContrasena()));
             }
-
             return ResponseEntity.ok(usuarioRepository.save(usuario));
         }).orElse(ResponseEntity.notFound().build());
     }
 
-    // Soft delete: alterna el estado activo/inactivo del usuario
+    @PreAuthorize("hasAuthority('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<?> toggleEstadoUsuario(@PathVariable Integer id) {
         return usuarioRepository.findById(id).map(usuario -> {
@@ -64,21 +72,36 @@ public class UsuarioController {
         }).orElse(ResponseEntity.notFound().build());
     }
 
-    // Devuelve un DTO sin hashContrasena para no exponer datos sensibles al frontend
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody Map<String, String> credenciales) {
+    public ResponseEntity<?> login(@RequestBody Map<String, String> credenciales,
+                                   HttpServletRequest request) {
         String username = credenciales.get("nombreUsuario");
         String password = credenciales.get("contrasena");
-
         try {
-            Usuario usuario = usuarioService.autenticar(username, password);
+            // Verificar que el usuario está activo antes de autenticar
+            Usuario usuario = usuarioService.buscarPorUsername(username);
+            if (!usuario.getActivo()) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("El usuario está deshabilitado.");
+            }
+
+            // Autenticar con Spring Security y crear sesión
+            UsernamePasswordAuthenticationToken authToken =
+                    new UsernamePasswordAuthenticationToken(username, password);
+            Authentication auth = authenticationManager.authenticate(authToken);
+            SecurityContextHolder.getContext().setAuthentication(auth);
+
+            HttpSession session = request.getSession(true);
+            session.setAttribute(
+                    HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY,
+                    SecurityContextHolder.getContext()
+            );
+
             return ResponseEntity.ok(toDTO(usuario));
-        } catch (IllegalStateException e) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(e.getMessage());
+
+        } catch (BadCredentialsException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Credenciales incorrectas.");
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("El usuario no existe");
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("El usuario no existe.");
         }
     }
 

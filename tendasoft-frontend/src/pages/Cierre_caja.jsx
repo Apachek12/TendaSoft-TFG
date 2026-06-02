@@ -4,7 +4,7 @@ import axios from 'axios';
 import { Lock, Unlock, AlertCircle, CheckCircle2, ArrowLeft } from 'lucide-react';
 import { toast, Toaster } from 'react-hot-toast';
 
-const API = 'http://localhost:8080';
+const API = import.meta.env.VITE_API_URL;
 
 export default function CierreCaja() {
   const navigate = useNavigate();

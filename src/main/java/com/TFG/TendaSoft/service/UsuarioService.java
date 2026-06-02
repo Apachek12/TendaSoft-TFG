@@ -3,14 +3,17 @@ package com.TFG.TendaSoft.service;
 import com.TFG.TendaSoft.model.Usuario;
 import com.TFG.TendaSoft.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.userdetails.User;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
-public class UsuarioService {
+public class UsuarioService implements UserDetailsService {
 
     private final UsuarioRepository usuarioRepository;
     private final PasswordEncoder passwordEncoder;
@@ -32,10 +35,8 @@ public class UsuarioService {
         return usuarioRepository.save(usuario);
     }
 
-    // Para no exponer la lógica en HTTP
     public Usuario autenticar(String username, String password) {
         Usuario usuario = buscarPorUsername(username);
-
         if (!usuario.getActivo()) {
             throw new IllegalStateException("El usuario está deshabilitado.");
         }
@@ -43,5 +44,16 @@ public class UsuarioService {
             throw new IllegalArgumentException("Contraseña incorrecta.");
         }
         return usuario;
+    }
+
+    @Override
+    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+        Usuario usuario = usuarioRepository.findByNombreUsuario(username)
+                .orElseThrow(() -> new UsernameNotFoundException("Usuario no encontrado"));
+        return User.builder()
+                .username(usuario.getNombreUsuario())
+                .password(usuario.getHashContrasena())
+                .authorities(usuario.getRol())
+                .build();
     }
 }

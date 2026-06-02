@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { X, Check } from 'lucide-react';
 
+const API = import.meta.env.VITE_API_URL;
+
 export default function ModalAñadirUsuario({ isOpen, onClose, onSuccess, usuarioEdit }) {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -13,7 +15,6 @@ export default function ModalAñadirUsuario({ isOpen, onClose, onSuccess, usuari
 
   useEffect(() => {
     if (!isOpen) return;
-
     if (usuarioEdit) {
       setFormData({
         nombreUsuario:  usuarioEdit.nombreUsuario || '',
@@ -29,16 +30,14 @@ export default function ModalAñadirUsuario({ isOpen, onClose, onSuccess, usuari
   const handleGuardar = async (e) => {
     e.preventDefault();
     setLoading(true);
-
     try {
       if (usuarioEdit) {
         const id = usuarioEdit.idUsuario || usuarioEdit.id;
         const payload = { ...formData };
-        // Si la contraseña viene vacía no se envía
         if (!payload.hashContrasena) delete payload.hashContrasena;
-        await axios.put(`http://localhost:8080/api/usuarios/${id}`, payload);
+        await axios.put(`${API}/api/usuarios/${id}`, payload);
       } else {
-        await axios.post('http://localhost:8080/api/usuarios', formData);
+        await axios.post(`${API}/api/usuarios`, formData);
       }
       onSuccess();
       onClose();
@@ -55,7 +54,6 @@ export default function ModalAñadirUsuario({ isOpen, onClose, onSuccess, usuari
   return (
     <div className="fixed inset-0 bg-[#001D3D]/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-[24px] w-full max-w-md shadow-2xl overflow-hidden border border-gray-100 animate-in zoom-in-95 duration-200">
-
         <div className="p-6 flex justify-between items-center bg-white border-b border-gray-50">
           <h2 className="text-[#001D3D] text-2xl font-black tracking-tight">
             {usuarioEdit ? 'Editar Usuario' : 'Nuevo Usuario'}
@@ -64,12 +62,11 @@ export default function ModalAñadirUsuario({ isOpen, onClose, onSuccess, usuari
             <X size={24} className="text-[#001D3D]" />
           </button>
         </div>
-
         <form onSubmit={handleGuardar} className="p-8 space-y-4">
           {[
-            { label: 'Nombre Real',          key: 'nombreReal',     type: 'text',     placeholder: 'Nombre completo' },
-            { label: 'Nombre de Usuario (@)', key: 'nombreUsuario', type: 'text',     placeholder: 'ID de acceso'    },
-            { label: 'Contraseña',            key: 'hashContrasena', type: 'password', placeholder: usuarioEdit ? 'Dejar en blanco para no cambiar' : 'Mínimo 6 caracteres' }
+            { label: 'Nombre Real',           key: 'nombreReal',     type: 'text',     placeholder: 'Nombre completo' },
+            { label: 'Nombre de Usuario (@)',  key: 'nombreUsuario',  type: 'text',     placeholder: 'ID de acceso'    },
+            { label: 'Contraseña',             key: 'hashContrasena', type: 'password', placeholder: usuarioEdit ? 'Dejar en blanco para no cambiar' : 'Mínimo 6 caracteres' }
           ].map(({ label, key, type, placeholder }) => (
             <div key={key} className="space-y-1">
               <label className="text-[10px] font-black text-[#95A5A6] uppercase ml-2">{label}</label>
@@ -83,7 +80,6 @@ export default function ModalAñadirUsuario({ isOpen, onClose, onSuccess, usuari
               />
             </div>
           ))}
-
           <div className="space-y-1">
             <label className="text-[10px] font-black text-[#95A5A6] uppercase ml-2">Rol</label>
             <select
@@ -95,7 +91,6 @@ export default function ModalAñadirUsuario({ isOpen, onClose, onSuccess, usuari
               <option value="ADMIN">ADMINISTRADOR</option>
             </select>
           </div>
-
           <button
             type="submit"
             disabled={loading}
