@@ -101,7 +101,7 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     private void inicializarAnclaVerifactu() {
-        String numeroAncla = "FAC-2026-0068";
+        String numeroAncla = "FAC-2026-0073";
 
         // La comprobación debe buscar el mismo número que se va a insertar
         if (ventaRepository.findFirstByNumeroFacturaStartingWithOrderByIdDesc(numeroAncla).isPresent()) return;

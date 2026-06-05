@@ -75,9 +75,12 @@ public class VerifactuHttpService {
             post.setEntity(new StringEntity(soapEnvelope, ContentType.create("text/xml", StandardCharsets.UTF_8)));
 
             // Ejecutar y devolver la respuesta
+            // En tu VerifactuHttpService.java, modifica el bloque final:
+
             try (CloseableHttpResponse response = httpClient.execute(post)) {
                 String respuesta = EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8);
-                log.debug("Respuesta AEAT recibida (longitud: {} chars)", respuesta.length());
+                log.info("Respuesta AEAT recibida (longitud: {} chars)", respuesta.length());
+                log.info("CONTENIDO DE LA RESPUESTA AEAT:\n{}", respuesta);
                 return respuesta;
             }
         }
